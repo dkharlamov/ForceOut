@@ -6,100 +6,112 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <time.h>
-#include <io.h>
 #include "resource.h"
 using namespace std;
+
+typedef long double TIME;
+
+XMFLOAT3 operator+(const XMFLOAT3 lhs, XMFLOAT3 rhs);
+XMFLOAT3 operator-(const XMFLOAT3 lhs, XMFLOAT3 rhs);
+XMFLOAT3 operator*(const XMMATRIX &lhs, XMFLOAT3 rhs);
+XMFLOAT3 operator*(XMFLOAT3 rhs, const XMMATRIX &lhs);
+XMFLOAT3 operator*(const XMFLOAT3 lhs, float rhs);
+XMFLOAT3 operator*(float rhs, const XMFLOAT3 lhs);
 
 
 struct SimpleVertex
 	{
 	XMFLOAT3 Pos;
 	XMFLOAT2 Tex;
-	XMFLOAT3 Norm;
 	};
 
 
-class ConstantBuffer
+struct ConstantBuffer
 	{
-	public:
-		ConstantBuffer()
-			{
-			info = XMFLOAT4(1, 1, 1, 1);
-			}
 	XMMATRIX World;
 	XMMATRIX View;
 	XMMATRIX Projection;
-	XMFLOAT4 info;
-	XMFLOAT4 CameraPos;
+	int d;
+	int e;
+	int f;
 	};
+//*****************************************
 
 
-//********************************************
-//********************************************
 class StopWatchMicro_
+{
+private:
+	LARGE_INTEGER last, frequency;
+public:
+	StopWatchMicro_()
 	{
-	private:
-		LARGE_INTEGER last, frequency;
-	public:
-		StopWatchMicro_()
-			{
-			QueryPerformanceFrequency(&frequency);
-			QueryPerformanceCounter(&last);
+		QueryPerformanceFrequency(&frequency);
+		QueryPerformanceCounter(&last);
 
-			}
-		long double elapse_micro()
-			{
-			LARGE_INTEGER now, dif;
-			QueryPerformanceCounter(&now);
-			dif.QuadPart = now.QuadPart - last.QuadPart;
-			long double fdiff = (long double)dif.QuadPart;
-			fdiff /= (long double)frequency.QuadPart;
-			return fdiff*1000000.;
-			}
-		long double elapse_milli()
-			{
-			elapse_micro() / 1000.;
-			}
-		void start()
-			{
-			QueryPerformanceCounter(&last);
-			}
-	};
+	}
+	long double elapse_micro()
+	{
+		LARGE_INTEGER now, dif;
+		QueryPerformanceCounter(&now);
+		dif.QuadPart = now.QuadPart - last.QuadPart;
+		long double fdiff = (long double)dif.QuadPart;
+		fdiff /= (long double)frequency.QuadPart;
+		return fdiff*1000000.;
+	}
+	long double elapse_milli()
+	{
+		elapse_micro() / 1000.;
+	}
+	void start()
+	{
+		QueryPerformanceCounter(&last);
+	}
+};
 //**********************************
 class billboard
+{
+public:
+	billboard()
 	{
-	public:
-		billboard()
-			{
-			position = XMFLOAT3(0, 0, 0);
-			scale = 1;
-			transparency = 1;
-			}
-		XMFLOAT3 position; //obvious
-		float scale;		//in case it can grow
-		float transparency; //for later use
-		XMMATRIX get_matrix(XMMATRIX &ViewMatrix)
-			{
+		position = XMFLOAT3(0, 0, 0);
+		scale = 1;
+		transparency = 1;
+		direction = false;
+		dead = false;
+	}
+	XMFLOAT3 position; //obvious
+	float scale;		//in case it can grow
+	float transparency; //for later use
+	bool direction;
+	bool dead;
+	XMMATRIX get_matrix(XMMATRIX &ViewMatrix)
+	{
 
-			XMMATRIX view,R, T, S;
-			view = ViewMatrix;
-			//eliminate camera translation:
-			view._41 = view._42 = view._43 = 0.0;
-			XMVECTOR det;
-			R = XMMatrixInverse(&det, view);//inverse rotation
-			T = XMMatrixTranslation(position.x, position.y, position.z);
-			S = XMMatrixScaling(scale, scale, scale);
-			return S*R*T;
-			}
+		XMMATRIX view, R, T, S;
+		view = ViewMatrix;
+		//eliminate camera translation:
+		view._41 = view._42 = view._43 = 0.0;
+		XMVECTOR det;
+		R = XMMatrixInverse(&det, view);//inverse rotation
+		T = XMMatrixTranslation(position.x, position.y, position.z);
+		S = XMMatrixScaling(scale, scale, scale);
+		return S*R*T;
+	}
 
-		XMMATRIX get_matrix_y(XMMATRIX &ViewMatrix) //enemy-type
-			{
+	XMMATRIX get_matrix_y(XMMATRIX &ViewMatrix) //enemy-type
+	{
 
-			}
-	};
+	}
+};
 
-//*****************************************
+
+struct bullet
+{
+	billboard projectile;
+	XMFLOAT3 impulse;
+};
+
+
 class bitmap
 	{
 
@@ -288,6 +300,19 @@ class level
 			if (no < 0 || no >= textures.size()) return NULL;
 			return textures[no];
 			}
+
+		bool check_col(XMFLOAT3 pos)
+		{
+			int x_offset = 50;
+			float x, z;
+			x = (pos.x / FULLWALL) + x_offset + 0.5f;
+			z = (pos.z / FULLWALL) + 0.5f;
+			BYTE red = leveldata.get_pixel(x, z, 2);
+			if (red > 10)
+				return false;
+			return true;
+		}
+
 		XMMATRIX get_wall_matrix(int no)
 			{
 			if (no < 0 || no >= walls.size()) return XMMatrixIdentity();
@@ -297,13 +322,15 @@ class level
 			{
 			return walls.size();
 			}
-		void render_level(ID3D11DeviceContext* ImmediateContext,ID3D11Buffer *vertexbuffer_wall,XMMATRIX *view, XMMATRIX *projection, ID3D11Buffer* dx_cbuffer)
+		void render_level(bool ded, ID3D11DeviceContext* ImmediateContext,ID3D11Buffer *vertexbuffer_wall,XMMATRIX *view, XMMATRIX *projection, ID3D11Buffer* dx_cbuffer)
 			{
 			//set up everything for the waqlls/floors/ceilings:
 			UINT stride = sizeof(SimpleVertex);
 			UINT offset = 0;			
 			ImmediateContext->IASetVertexBuffers(0, 1, &vertexbuffer_wall, &stride, &offset);
 			ConstantBuffer constantbuffer;			
+			if (ded)
+				constantbuffer.d = 1;
 			constantbuffer.View = XMMatrixTranspose(*view);
 			constantbuffer.Projection = XMMatrixTranspose(*projection);			
 			XMMATRIX wall_matrix,S;
@@ -337,104 +364,102 @@ class level
 		private:
 
 		public:
-			int w, s, a, d,q,e;
+			int w, s, a, d;
 			XMFLOAT3 position;
 			XMFLOAT3 rotation;
 			camera()
 				{
 				w = s = a = d = 0;
-				position = position = XMFLOAT3(0, 0, 0);
+				position = rotation = XMFLOAT3(0, 0, 0);
 				}
-			void animation(float elapsed_microseconds)
+			void animation(TIME t, float factor, level *levl)
 				{
-				XMMATRIX Ry,Rx, T;
-				Ry = XMMatrixRotationY(-rotation.y);
-				Rx = XMMatrixRotationX(-rotation.x);
+
+
+				XMMATRIX R, T;
+				R = XMMatrixRotationY(-rotation.y);
 
 				XMFLOAT3 forward = XMFLOAT3(0, 0, 1);
 				XMVECTOR f = XMLoadFloat3(&forward);
-				f = XMVector3TransformCoord(f, Rx*Ry);
+				f = XMVector3TransformCoord(f, R);
 				XMStoreFloat3(&forward, f);
 				XMFLOAT3 side = XMFLOAT3(1, 0, 0);
 				XMVECTOR si = XMLoadFloat3(&side);
-				si = XMVector3TransformCoord(si, Rx*Ry);
+				si = XMVector3TransformCoord(si, R);
 				XMStoreFloat3(&side, si);
-
-				float speed = elapsed_microseconds/100000.0;
-
+				
 				if (w)
 					{
-					position.x -= forward.x * speed;
-					position.y -= forward.y * speed;
-					position.z -= forward.z * speed;
+					position.x -= (forward.x * t * factor);
+					position.y -= (forward.y * t * factor);
+					position.z -= (forward.z * t * factor);
+					bool topRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z - 0.25f));
+					bool topLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z - 0.25f));
+					bool bottomRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z + 0.25f));
+					bool bottomLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z + 0.25f));
+						if (topRight || topLeft || bottomLeft || bottomRight)
+						{	
+							position.x += (forward.x * t * factor);
+							position.y += (forward.y * t * factor);
+							position.z += (forward.z * t * factor);
+
+						}
+
 					}
 				if (s)
 					{
-					position.x += forward.x * speed;
-					position.y += forward.y * speed;
-					position.z += forward.z * speed;
+					position.x += forward.x * t * factor;
+					position.y += forward.y * t * factor;
+					position.z += forward.z * t * factor;
+					bool topRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z - 0.25f));
+					bool topLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z - 0.25f));
+					bool bottomRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z + 0.25f));
+					bool bottomLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z + 0.25f));
+					if (topRight || topLeft || bottomLeft || bottomRight)
+					{
+						position.x -= forward.x * t * factor;
+						position.y -= forward.y * t * factor;
+						position.z -= forward.z * t * factor;
+					}
 					}
 				if (d)
 					{
-					position.x -= side.x * 0.01;
-					position.y -= side.y * 0.01;
-					position.z -= side.z * 0.01;
+					position.x -= side.x * t * factor;
+					position.y -= side.y * t * factor;
+					position.z -= side.z * t * factor;
+					bool topRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z - 0.25f));
+					bool topLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z - 0.25f));
+					bool bottomRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z + 0.25f));
+					bool bottomLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z + 0.25f));
+					if (topRight || topLeft || bottomLeft || bottomRight)
+					{
+						position.x += side.x * t * factor;
+						position.y += side.y * t * factor;
+						position.z += side.z * t * factor;
+					}
 					}
 				if (a)
 					{
-					position.x += side.x * 0.01;
-					position.y += side.y * 0.01;
-					position.z += side.z * 0.01;
+					position.x += side.x * t * factor;
+					position.y += side.y * t * factor;
+					position.z += side.z * t * factor;
+					bool topRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z - 0.25f));
+					bool topLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z - 0.25f));
+					bool bottomRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z + 0.25f));
+					bool bottomLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z + 0.25f));
+					if (topRight || topLeft || bottomLeft || bottomRight)
+					{
+						position.x -= side.x * t * factor;
+						position.y -= side.y * t * factor;
+						position.z -= side.z * t * factor;
 					}
-					
-
+					}
 				}
 			XMMATRIX get_matrix(XMMATRIX *view)
 				{
-				XMMATRIX Rx,Ry, T;
-				Rx = XMMatrixRotationX(rotation.x);
-				Ry = XMMatrixRotationY(rotation.y);
-				T = XMMatrixTranslation(position.x, position.y, position.z);
-				return T*(*view)*Ry*Rx;
-				}
-		};
-
-
-
-
-	class bullet
-		{
-		public:
-			XMFLOAT3 pos, imp;
-			bullet()
-				{
-				pos = imp = XMFLOAT3(0, 0, 0);
-				}
-			XMMATRIX getmatrix(float elapsed, XMMATRIX &view)
-				{
-
-				pos.x = pos.x + imp.x *(elapsed / 100000.0);
-				pos.y = pos.y + imp.y *(elapsed / 100000.0);
-				pos.z = pos.z + imp.z *(elapsed / 100000.0);
-
 				XMMATRIX R, T;
-				R = view;
-				R._41 = R._42 = R._43 = 0.0;
-				XMVECTOR det;
-				R = XMMatrixInverse(&det, R);
-				T = XMMatrixTranslation(pos.x, pos.y, pos.z);
-
-				return R * T;
+				R = XMMatrixRotationY(rotation.y) * XMMatrixRotationX(rotation.x);
+				T = XMMatrixTranslation(position.x, position.y, position.z);
+				return T*(*view)*R;
 				}
 		};
-
-
-
-
-	float Vec3Length(const XMFLOAT3 &v);
-	float Vec3Dot(XMFLOAT3 a, XMFLOAT3 b);
-	XMFLOAT3 Vec3Cross(XMFLOAT3 a, XMFLOAT3 b);
-	XMFLOAT3 Vec3Normalize(const  XMFLOAT3 &a);
-	XMFLOAT3 operator+(const XMFLOAT3 lhs, const XMFLOAT3 rhs);
-	XMFLOAT3 operator-(const XMFLOAT3 lhs, const XMFLOAT3 rhs);
-	bool Load3DS(char *filename, ID3D11Device* g_pd3dDevice, ID3D11Buffer **ppVertexBuffer, int *vertex_count);

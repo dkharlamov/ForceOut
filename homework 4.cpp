@@ -12,6 +12,20 @@
 // Structures
 //--------------------------------------------------------------------------------------
 
+/*
+Daniel Kharlamov
+CST320 HW 5 P2
+
+5 Enemies with collision detection and death on collide
+Skybox
+Mouse horizontal view and wasd controls with strafe
+Shift enabled sprinting
+Night level
+Bullets that kill
+Wall collision
+Gun model
+1280x720
+*/
 
 
 
@@ -29,20 +43,23 @@ ID3D11RenderTargetView*             g_pRenderTargetView = NULL;
 ID3D11Texture2D*                    g_pDepthStencil = NULL;
 ID3D11DepthStencilView*             g_pDepthStencilView = NULL;
 ID3D11VertexShader*                 g_pVertexShader = NULL;
+ID3D11VertexShader*                 g_pVertexShaderHUD = NULL;
 ID3D11PixelShader*                  g_pPixelShader = NULL;
 ID3D11InputLayout*                  g_pVertexLayout = NULL;
 ID3D11Buffer*                       g_pVertexBuffer = NULL;
 ID3D11Buffer*                       g_pVertexBuffer_sky = NULL;
-ID3D11Buffer*                       g_pVertexBuffer_3ds = NULL;
-int									model_vertex_anz = 0;
 //states for turning off and on the depth buffer
 ID3D11DepthStencilState				*ds_on, *ds_off;
-ID3D11BlendState*					g_BlendState;
+
+ID3D11BlendState					*g_pBlendState = NULL;
 
 ID3D11Buffer*                       g_pCBuffer = NULL;
 
 ID3D11ShaderResourceView*           g_pTextureRV = NULL;
-ID3D11RasterizerState				*rs_CW, *rs_CCW, *rs_NO, *rs_Wire;
+ID3D11ShaderResourceView*			g_pEnemyTex = NULL;
+ID3D11ShaderResourceView*			g_pDeathTex = NULL;
+ID3D11ShaderResourceView*			g_pGunTex = NULL;
+ID3D11ShaderResourceView*			g_pBulletTex = NULL;
 
 ID3D11SamplerState*                 g_pSamplerLinear = NULL;
 XMMATRIX                            g_World;
@@ -52,9 +69,6 @@ XMFLOAT4                            g_vMeshColor( 0.7f, 0.7f, 0.7f, 1.0f );
 
 camera								cam;
 level								level1;
-vector<billboard*>					smokeray;
-XMFLOAT3							rocket_position;
-#define ROCKETRADIUS				10
 //--------------------------------------------------------------------------------------
 // Forward declarations
 //--------------------------------------------------------------------------------------
@@ -82,7 +96,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
         CleanupDevice();
         return 0;
     }
-	srand(time(0));
+
     // Main message loop
     MSG msg = {0};
     while( WM_QUIT != msg.message )
@@ -128,7 +142,7 @@ HRESULT InitWindow( HINSTANCE hInstance, int nCmdShow )
 
     // Create window
     g_hInst = hInstance;
-    RECT rc = { 0, 0, 1024, 480 };
+    RECT rc = { 0, 0, 1280, 720 };
     AdjustWindowRect( &rc, WS_OVERLAPPEDWINDOW, FALSE );
     g_hWnd = CreateWindow( L"TutorialWindowClass", L"Direct3D 11 Tutorial 7", WS_OVERLAPPEDWINDOW,
                            CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, NULL, NULL, hInstance,
@@ -174,12 +188,46 @@ HRESULT CompileShaderFromFile( WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR sz
 }
 
 
+vector<billboard> enemies;
+vector<bullet> bullets;
 //--------------------------------------------------------------------------------------
 // Create Direct3D device and swap chain
 //--------------------------------------------------------------------------------------
 HRESULT InitDevice()
 {
     HRESULT hr = S_OK;
+
+	
+	billboard enemy1;
+	enemy1.position.x = enemy1.position.z = 10;
+	enemies.push_back(enemy1);
+	billboard enemy2;
+	enemy2.position.x = -10;
+	enemy2.position.z = 12;
+	enemies.push_back(enemy2);
+	billboard enemy3;
+	enemy3.position.z = 20;
+	enemies.push_back(enemy3);
+	billboard enemy4;
+	enemy4.position.z = 20;
+	enemy4.position.x = -10;
+	enemies.push_back(enemy4);
+	billboard enemy5;
+	enemy5.position.z = 30;
+	enemy5.position.x = 7;
+	enemy5.transparency = 0.5f;
+	enemies.push_back(enemy5);
+
+	for (int i = 0; i < 6; i++)
+	{
+		bullet bull;
+		bull.projectile.position = XMFLOAT3(0,0,100);
+		bull.impulse = XMFLOAT3(0, 0, 0);
+		bullets.push_back(bull);
+	}
+
+	cam.position.z = -6;
+	cam.position.x = -1;
 
     RECT rc;
     GetClientRect( g_hWnd, &rc );
@@ -222,13 +270,13 @@ HRESULT InitDevice()
     sd.Windowed = TRUE;
 
     for( UINT driverTypeIndex = 0; driverTypeIndex < numDriverTypes; driverTypeIndex++ )
-		{
+    {
         g_driverType = driverTypes[driverTypeIndex];
         hr = D3D11CreateDeviceAndSwapChain( NULL, g_driverType, NULL, createDeviceFlags, featureLevels, numFeatureLevels,
                                             D3D11_SDK_VERSION, &sd, &g_pSwapChain, &g_pd3dDevice, &g_featureLevel, &g_pImmediateContext );
         if( SUCCEEDED( hr ) )
             break;
-		}
+    }
     if( FAILED( hr ) )
         return hr;
 
@@ -272,6 +320,24 @@ HRESULT InitDevice()
     if( FAILED( hr ) )
         return hr;
 
+
+	D3D11_BLEND_DESC blendStateDesc;
+	ZeroMemory(&blendStateDesc, sizeof(D3D11_BLEND_DESC));
+	blendStateDesc.AlphaToCoverageEnable = FALSE;
+	blendStateDesc.IndependentBlendEnable = FALSE;
+	blendStateDesc.RenderTarget[0].BlendEnable = TRUE;
+	blendStateDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blendStateDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	blendStateDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendStateDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ZERO;
+	blendStateDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	blendStateDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendStateDesc.RenderTarget[0].RenderTargetWriteMask = 0x0F;
+	g_pd3dDevice->CreateBlendState(&blendStateDesc, &g_pBlendState);
+
+	float blendFactor[] = { 0, 0, 0, 0 };
+	UINT sampleMask = 0xffffffff;
+	g_pImmediateContext->OMSetBlendState(g_pBlendState, blendFactor, sampleMask);
 	  
 
     // Setup the viewport
@@ -301,13 +367,30 @@ HRESULT InitDevice()
         pVSBlob->Release();
         return hr;
     }
+	pVSBlob = NULL;
+	hr = CompileShaderFromFile(L"shader.fx", "VSHUD", "vs_4_0", &pVSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(NULL,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
 
+	// Create the vertex shader
+	hr = g_pd3dDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), NULL, &g_pVertexShaderHUD);
+	if (FAILED(hr))
+	{
+		pVSBlob->Release();
+		return hr;
+	}
+
+
+	
     // Define the input layout
     D3D11_INPUT_ELEMENT_DESC layout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     UINT numElements = ARRAYSIZE( layout );
 
@@ -336,24 +419,102 @@ HRESULT InitDevice()
     pPSBlob->Release();
     if( FAILED( hr ) )
         return hr;
+
+
 	//create skybox vertex buffer
-	
-	
-	
-    // Create vertex buffer
-	SimpleVertex *vertices=new SimpleVertex[500 * 500 * 6];
-	
-
+	SimpleVertex vertices_skybox[] =
+		{
+		//top
+		//00x 0.25 00y 0.0 10x .5 10y .33
+				{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(0.25f, 0.0f) },
+				{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(0.5f, 0.0f)  },
+				{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.5f, 0.33333333333333333333333f)  },
+				{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(0.25f, 0.0f) },
+				{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.5f, 0.33333333333333333333333f) },
+				{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(0.25f, 0.33333333333333333333333f)  },
+		//bottom
+		//00x 0.25 00y 0.66 10x .5 10y 1
+				{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(0.5f, 0.66666666666f) },
+				{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.25f, 0.666666666f)  },				
+				{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(0.5f, 1.0f) },				
+				{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(0.5f, 1.0f) },
+				{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.25f, 0.6666666666f) },
+				{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.25f, 1.0f)},
+		//left
+		//00x 0.0 00y .33 10x .25 10y .66
+				{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.25f, 0.66f)  },
+				{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 0.66f) },
+				{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 0.33333333333333333333333f) },
+				{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.25f, 0.66f) },				
+				{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 0.33333333333333333333333f) },
+				{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(0.25f, 0.33333333333333333333333f)  },
+		//right
+		//00x .5 00y .33 10x .75 10y .66
+				{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(0.75f, 0.66f) },
+				{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(0.5f, 0.66f) },				
+				{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(0.75f, 1.0f / 3.0f) },				
+				{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(0.75f, 1.0f/3.0f) },
+				{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(0.5f, 0.66f) },
+				{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.5f, 1.0f/3.0f)  },
+		//back
+		//00x .75 00y .33 10x 1.0 10y .66
+				{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 0.66f)  },
+				{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(0.75f, 0.66f)  },
+				{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(0.75f, 1.0f/3.0f) },
+				{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 0.66f) },
+				{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(0.75f, 1.0f/3.0f) },
+				{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f/3.0f) },
+		//front
+		//00x .25 00y .33 10x .5 10y .66
+				{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.25f, 0.66f) },				
+				{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.5f, 0.33f) },
+				{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(0.5f, 0.66f) },
+				{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.5f, 0.33f) },
+				{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.25f, 0.66f) },				
+				{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(0.25f, 0.33f)  },
+		};
 	D3D11_BUFFER_DESC bd;
+	ZeroMemory(&bd, sizeof(bd));
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = sizeof(SimpleVertex) * 36;
+	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bd.CPUAccessFlags = 0;
+	D3D11_SUBRESOURCE_DATA InitData;
+	ZeroMemory(&InitData, sizeof(InitData));
+	InitData.pSysMem = vertices_skybox;
+	hr = g_pd3dDevice->CreateBuffer(&bd, &InitData, &g_pVertexBuffer_sky);
+	if (FAILED(hr))
+		return hr;
+    // Create vertex buffer
+    SimpleVertex vertices[] =
+    {
+        { XMFLOAT3( -1.0f, -1.0f, 0.0f ), XMFLOAT2( 1.0f, 1.0f ) },
+        { XMFLOAT3( 1.0f, -1.0f, 0.0f ), XMFLOAT2( 0.0f, 1.0f ) },
+        { XMFLOAT3( 1.0f, 1.0f, 0.0f ), XMFLOAT2( 0.0f, 0.0f ) },
+		{ XMFLOAT3(-1.0f, -1.0f, 0.0f), XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+        { XMFLOAT3( -1.0f, 1.0f, 0.0f ), XMFLOAT2( 1.0f, 0.0f ) },
+
+		{ XMFLOAT3(1.0f, -1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, 0.0f), XMFLOAT2(1.0f, 1.0f) },		
+		{ XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, 0.0f), XMFLOAT2(1.0f, 1.0f) },		
+		{ XMFLOAT3(-1.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) }
+
+    };
+
+
     ZeroMemory( &bd, sizeof(bd) );
-   
-	//load model 3ds file
-
-
-	//carrier.3ds
-	//hornet.3ds
-	//f15.3ds
-	Load3DS("teapot.3ds", g_pd3dDevice, &g_pVertexBuffer_3ds, &model_vertex_anz);
+    bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = sizeof(SimpleVertex) * 12;
+    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    bd.CPUAccessFlags = 0;
+    ZeroMemory( &InitData, sizeof(InitData) );
+    InitData.pSysMem = vertices;
+    hr = g_pd3dDevice->CreateBuffer( &bd, &InitData, &g_pVertexBuffer );
+    if( FAILED( hr ) )
+        return hr;
 
     // Set vertex buffer
     UINT stride = sizeof( SimpleVertex );
@@ -375,9 +536,26 @@ HRESULT InitDevice()
     
 
     // Load the Texture
-    hr = D3DX11CreateShaderResourceViewFromFile( g_pd3dDevice, L"camouflage.png", NULL, NULL, &g_pTextureRV, NULL );
+    hr = D3DX11CreateShaderResourceViewFromFile( g_pd3dDevice, L"grimmnight_large.jpg", NULL, NULL, &g_pTextureRV, NULL );
     if( FAILED( hr ) )
         return hr;
+
+	hr = D3DX11CreateShaderResourceViewFromFile(g_pd3dDevice, L"imp.png", NULL, NULL, &g_pEnemyTex, NULL);
+	if (FAILED(hr))
+		return hr;
+
+	hr = D3DX11CreateShaderResourceViewFromFile(g_pd3dDevice, L"ded.png", NULL, NULL, &g_pDeathTex, NULL);
+	if (FAILED(hr))
+		return hr;
+
+	hr = D3DX11CreateShaderResourceViewFromFile(g_pd3dDevice, L"mgun.png", NULL, NULL, &g_pGunTex, NULL);
+	if (FAILED(hr))
+		return hr;
+
+	hr = D3DX11CreateShaderResourceViewFromFile(g_pd3dDevice, L"bullet.png", NULL, NULL, &g_pBulletTex, NULL);
+	if (FAILED(hr))
+		return hr;
+
 
     // Create the sample state
     D3D11_SAMPLER_DESC sampDesc;
@@ -404,34 +582,14 @@ HRESULT InitDevice()
 
 	// Initialize the projection matrix
 	g_Projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, width / (FLOAT)height, 0.01f, 1000.0f);
+	
 
 	ConstantBuffer constantbuffer;
 	constantbuffer.View = XMMatrixTranspose( g_View );
 	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
 	constantbuffer.World = XMMatrixTranspose(XMMatrixIdentity());
-	constantbuffer.info = XMFLOAT4(1, 1, 1, 1);
     g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0 );
 
-	//blendstate:
-	D3D11_BLEND_DESC blendStateDesc;
-	ZeroMemory(&blendStateDesc, sizeof(D3D11_BLEND_DESC));
-	blendStateDesc.AlphaToCoverageEnable = FALSE;
-	blendStateDesc.IndependentBlendEnable = FALSE;
-	blendStateDesc.RenderTarget[0].BlendEnable = TRUE;
-	blendStateDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-	blendStateDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-	blendStateDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-	blendStateDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ZERO;
-	blendStateDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
-	blendStateDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-	blendStateDesc.RenderTarget[0].RenderTargetWriteMask = 0x0F;
-	g_pd3dDevice->CreateBlendState(&blendStateDesc, &g_BlendState);
-
-
-	float blendFactor[] = { 0, 0, 0, 0 };
-	UINT sampleMask = 0xffffffff;
-	g_pImmediateContext->OMSetBlendState(g_BlendState, blendFactor, sampleMask);
-	
 
 	//create the depth stencil states for turning the depth buffer on and of:
 	D3D11_DEPTH_STENCIL_DESC		DS_ON, DS_OFF;
@@ -464,28 +622,6 @@ HRESULT InitDevice()
 	level1.init_texture(g_pd3dDevice, L"floor.jpg");
 	level1.init_texture(g_pd3dDevice, L"ceiling.jpg");
 	
-	rocket_position = XMFLOAT3(0, 0, ROCKETRADIUS);
-
-
-	//setting the rasterizer:
-	D3D11_RASTERIZER_DESC			RS_CW, RS_Wire;
-
-	RS_CW.AntialiasedLineEnable = FALSE;
-	RS_CW.CullMode = D3D11_CULL_BACK;
-	RS_CW.DepthBias = 0;
-	RS_CW.DepthBiasClamp = 0.0f;
-	RS_CW.DepthClipEnable = true;
-	RS_CW.FillMode = D3D11_FILL_SOLID;
-	RS_CW.FrontCounterClockwise = false;
-	RS_CW.MultisampleEnable = FALSE;
-	RS_CW.ScissorEnable = false;
-	RS_CW.SlopeScaledDepthBias = 0.0f;
-
-	RS_Wire = RS_CW;
-	RS_Wire.CullMode = D3D11_CULL_NONE;
-	RS_Wire.FillMode = D3D11_FILL_WIREFRAME;
-	g_pd3dDevice->CreateRasterizerState(&RS_Wire, &rs_Wire);
-	g_pd3dDevice->CreateRasterizerState(&RS_CW, &rs_CW);
     return S_OK;
 }
 
@@ -514,26 +650,25 @@ void CleanupDevice()
 ///////////////////////////////////
 //		This Function is called every time the Left Mouse Button is down
 ///////////////////////////////////
-bullet *bull = NULL;
+
+XMVECTOR *det = new XMVECTOR;
 void OnLBD(HWND hwnd, BOOL fDoubleClick, int x, int y, UINT keyFlags)
 	{
-	bull = new bullet;
-	bull->pos.x = -cam.position.x;
-	bull->pos.y = -cam.position.y-1.2;
-	bull->pos.z = -cam.position.z;
-	XMMATRIX CR = XMMatrixRotationY(-cam.rotation.y);
+	static int clip = 0;
+	if (clip == 6)
+		clip = 0;
+	XMFLOAT3 shootdirection = XMFLOAT3(0, 0, 1);
+	XMMATRIX R = cam.get_matrix(&g_View);
 
-	XMFLOAT3 forward = XMFLOAT3(0, 0, 3);
-	XMVECTOR f = XMLoadFloat3(&forward);
-	f = XMVector3TransformCoord(f, CR);
-	XMStoreFloat3(&forward, f);
+	R._41 = R._42 = R._43 = 0.0f;
+	R = XMMatrixInverse(det, R);
 
-	bull->imp = forward;
+	shootdirection = R * shootdirection;
 
-
-
+	bullets[clip].impulse = shootdirection;
+	bullets[clip].projectile.position = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z);
+	clip++;
 	}
-
 ///////////////////////////////////
 //		This Function is called every time the Right Mouse Button is down
 ///////////////////////////////////
@@ -553,8 +688,6 @@ void OnChar(HWND hwnd, UINT ch, int cRepeat)
 ///////////////////////////////////
 void OnLBU(HWND hwnd, int x, int y, UINT keyFlags)
 	{
-
-
 	}
 ///////////////////////////////////
 //		This Function is called every time the Right Mouse Button is up
@@ -567,22 +700,36 @@ void OnRBU(HWND hwnd, int x, int y, UINT keyFlags)
 ///////////////////////////////////
 //		This Function is called every time the Mouse Moves
 ///////////////////////////////////
+
+bool dead = false;
 void OnMM(HWND hwnd, int x, int y, UINT keyFlags)
 	{
-	static int holdx = x, holdy = y;
-	static int reset_cursor = 0;
+	static int lastX = x;
+	static int flag = 0;
+	if (flag == 1)
+	{
+		lastX = x;
+		flag = 0;
+		return;
+	}
+	
+	if (!dead)
+	{
+	int diff = lastX - x;
+	cam.rotation.y += diff * 0.01f;
+	lastX = x;
 
+	RECT r;
 
+	GetWindowRect(hwnd, &r);
 
-	RECT rc; 			//rectange structure
-	GetWindowRect(hwnd, &rc); 	//retrieves the window size
-	int border = 20;
-	rc.bottom -= border;
-	rc.right -= border;
-	rc.left += border;
-	rc.top += border;
-	ClipCursor(&rc);
+	int mx = (r.left + r.right) / 2;
+	int my = (r.top + r.bottom) / 2;
 
+	SetCursorPos(mx,my);
+	flag = 1;
+
+	}
 	if ((keyFlags & MK_LBUTTON) == MK_LBUTTON)
 		{
 		}
@@ -590,55 +737,43 @@ void OnMM(HWND hwnd, int x, int y, UINT keyFlags)
 	if ((keyFlags & MK_RBUTTON) == MK_RBUTTON)
 		{
 		}
-	if (reset_cursor == 1)
-		{		
-		reset_cursor = 0;
-		holdx = x;
-		holdy = y;
-		return;
-		}
-	int diffx = holdx - x;
-	int diffy = holdy - y;
-	float angle_y = (float)diffx / 300.0;
-	float angle_x = (float)diffy / 300.0;
-	cam.rotation.y += angle_y;
-	cam.rotation.x += angle_x;
-
-	int midx = (rc.left + rc.right) / 2;
-	int midy = (rc.top + rc.bottom) / 2;
-	SetCursorPos(midx, midy);
-	reset_cursor = 1;
+	
 	}
+
+int plane = 0;		//global defined
+void mHideCursor() 	//hides cursor
+{
+	while (plane >= 0)
+		plane = ShowCursor(FALSE);
+}
+void mShowCursor() 	//shows it again
+{
+	while (plane<0)
+		plane = ShowCursor(TRUE);
+}
+
 
 
 BOOL OnCreate(HWND hwnd, CREATESTRUCT FAR* lpCreateStruct)
 	{
-	RECT rc; 			//rectange structure
-	GetWindowRect(hwnd, &rc); 	//retrieves the window size
-	int border = 5;
-	rc.bottom -= border;
-	rc.right -= border;
-	rc.left += border;
-	rc.top += border;
-	ClipCursor(&rc);
-	int midx = (rc.left + rc.right) / 2;
-	int midy = (rc.top + rc.bottom) / 2;
-	SetCursorPos(midx,midy);
+	RECT rc;
+	GetWindowRect(hwnd, &rc);
+	SetCursorPos((rc.right + rc.left)/2, (rc.bottom + rc.top)/2);
+	
+	mHideCursor();
+
 	return TRUE;
 	}
 void OnTimer(HWND hwnd, UINT id)
 	{
-	
+
 	}
+bool shiftDown = false;
 //*************************************************************************
 void OnKeyUp(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
 	{
 	switch (vk)
 		{
-			case 81://q
-			cam.q = 0; break;
-			case 69://e
-			cam.e = 0; break;
 			case 65:cam.a = 0;//a
 				break;
 			case 68: cam.d = 0;//d
@@ -646,6 +781,8 @@ void OnKeyUp(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
 			case 32: //space
 				break;
 			case 87: cam.w = 0; //w
+				break;
+			case 16: shiftDown = false;//escape
 				break;
 			case 83:cam.s = 0; //s
 			default:break;
@@ -656,14 +793,10 @@ void OnKeyUp(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
 
 void OnKeyDown(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
 	{
-
+	int x = 0;
 	switch (vk)
 		{
 			default:break;
-			case 81://q
-			cam.q = 1; break;
-			case 69://e
-			cam.e = 1; break;
 			case 65:cam.a = 1;//a
 				break;
 			case 68: cam.d = 1;//d
@@ -674,26 +807,10 @@ void OnKeyDown(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
 				break;
 			case 83:cam.s = 1; //s
 				break;
+			case 16: shiftDown = true;//escape
+				break;
 			case 27: PostQuitMessage(0);//escape
 				break;
-
-			case 84://t
-			{
-			static int laststate = 0;
-			if (laststate == 0)
-				{
-				g_pImmediateContext->RSSetState(rs_Wire);
-				laststate = 1;
-				}
-			else
-				{
-				g_pImmediateContext->RSSetState(rs_CW);
-				laststate = 0;
-				}
-
-			}
-			break;
-
 		}
 	}
 
@@ -721,6 +838,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
             break;
 
         case WM_DESTROY:
+			mShowCursor();
             PostQuitMessage( 0 );
             break;
 
@@ -770,60 +888,74 @@ class sprites
 	};
 sprites mario;
 
+
+void animateEnemies(TIME t)
+{
+	if (enemies[0].position.x < 0)
+		enemies[0].direction = true;
+	if(enemies[0].position.x > 10)
+		enemies[0].direction = false;
+
+	if (!enemies[0].direction)
+		enemies[0].position.x -= t * 0.0000007f;
+	else
+		enemies[0].position.x += t * 0.0000007f;
+
+	if (enemies[1].position.x < -10)
+		enemies[1].direction = true;
+	if (enemies[1].position.x > 0)
+		enemies[1].direction = false;
+
+	if (!enemies[1].direction)
+		enemies[1].position.x -= t * 0.0000005f;
+	else
+		enemies[1].position.x += t * 0.0000005f;
+
+	if (enemies[2].position.x < -5)
+		enemies[2].direction = true;
+	if (enemies[2].position.x > 10)
+		enemies[2].direction = false;
+
+	if (!enemies[2].direction)
+		enemies[2].position.x -= t * 0.0000009f;
+	else
+		enemies[2].position.x += t * 0.0000009f;
+
+	if (enemies[3].position.z < 12)
+		enemies[3].direction = true;
+	if (enemies[3].position.z > 22)
+		enemies[3].direction = false;
+
+	if (!enemies[3].direction)
+		enemies[3].position.z -= t * 0.0000005f;
+	else
+		enemies[3].position.z += t * 0.0000005f;
+
+	static float tm = 0.0f;
+	tm += t / 6000000.0;
+	enemies[4].position.x = 7.0 + (3 * sin(tm));
+	enemies[4].position.z = 34.0 + (2 * cos(tm));
+
+
+}
+
+
 //--------------------------------------------------------------------------------------
 // Render a frame
 //--------------------------------------------------------------------------------------
-
-void animate_rocket(float elapsed_microseconds)
-	{
-	
-	//going to a new position
-	static float rocket_angle = 0.0;
-	rocket_angle +=  elapsed_microseconds / 1000000.0;
-
-	rocket_position.x = sin(rocket_angle) * ROCKETRADIUS;
-	rocket_position.z = cos(rocket_angle) * ROCKETRADIUS;
-	rocket_position.y = 0;
-	
-
-	//update all billboards (growing and transparency)
-	for (int ii = 0; ii < smokeray.size(); ii++)
-		{
-		smokeray[ii]->transparency -= 0.0002;
-		smokeray[ii]->scale+= 0.0003;
-		if (smokeray[ii]->transparency < 0) // means its dead
-			{
-			smokeray.erase(smokeray.begin() + ii);
-			ii--;
-			}
-		}
-
-	//apply a new billboard
-	static float time = 0;
-	time += elapsed_microseconds;
-	if (time < 120000)//every 10 milliseconds
-		return;
-	time = 0;
-	billboard *new_bill = new billboard;
-	new_bill->position = rocket_position;
-	new_bill->scale = 1. + (float)(rand() % 100) / 300.;
-	smokeray.push_back(new_bill);
-	
-	}
-//*******************************************************
 void Render()
 {
-static StopWatchMicro_ stopwatch;
-long elapsed = stopwatch.elapse_micro();
-stopwatch.start();//restart
-
-
-
 UINT stride = sizeof(SimpleVertex);
 UINT offset = 0;
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
-  
+    // Update our time
+    static float t = 0.0f;
+	t += 0.001;
+
+    ConstantBuffer constantbuffer;
+	
+
     // Clear the back buffer
     float ClearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f }; // red, green, blue, alpha
     g_pImmediateContext->ClearRenderTargetView( g_pRenderTargetView, ClearColor );
@@ -831,69 +963,152 @@ UINT offset = 0;
     // Clear the depth buffer to 1.0 (max depth)
     g_pImmediateContext->ClearDepthStencilView( g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0 );
 
-	cam.animation(elapsed);
+	static StopWatchMicro_ timer;
+	TIME elapsed = timer.elapse_micro();
+	timer.start();
+
+	
+	if (dead)
+	{
+		constantbuffer.d = 1;
+	}
+	else
+	{
+		if (shiftDown)
+			cam.animation(elapsed, 0.00001f, &level1);
+		else
+			cam.animation(elapsed, 0.000005f, &level1);
+	}
+
 	XMMATRIX view = cam.get_matrix(&g_View);
 
-	XMMATRIX Iview = view;
-	Iview._41 = Iview._42 = Iview._43 = 0.0;
-	XMVECTOR det;
-	Iview = XMMatrixInverse(&det, Iview);
 
-	//ENTER MATRIX CALCULATION HERE
-	XMMATRIX worldmatrix;
-	worldmatrix = XMMatrixIdentity();
-	//XMMATRIX S, T, R, R2;
-	//worldmatrix = .... probably define some other matrices here!
-	
-	
-	static billboard bill;
-	animate_rocket(elapsed);
-	bill.position = rocket_position;
-	worldmatrix = bill.get_matrix(view);
+	XMMATRIX T = XMMatrixTranslation(-cam.position.x, -cam.position.y, -cam.position.z);
 
-
-
-
-	
-
-    // Update constant buffer
-    ConstantBuffer constantbuffer;
-	constantbuffer.View = XMMatrixTranspose(view);
+    // Update skybox constant buffer
+	constantbuffer.World	=	XMMatrixTranspose(T);
+	constantbuffer.View		=	XMMatrixTranspose(view);
 	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
-	constantbuffer.CameraPos = XMFLOAT4(cam.position.x, cam.position.y, cam.position.z, 1);
+    g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0 );
+    // Render skybox
+    g_pImmediateContext->VSSetShader( g_pVertexShader, NULL, 0 );
+	g_pImmediateContext->PSSetShader(g_pPixelShader, NULL, 0);	
+	g_pImmediateContext->VSSetConstantBuffers( 0, 1, &g_pCBuffer);   
+    g_pImmediateContext->PSSetConstantBuffers( 0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetShaderResources( 0, 1, &g_pTextureRV );
+	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sky, &stride, &offset);
+    g_pImmediateContext->PSSetSamplers( 0, 1, &g_pSamplerLinear );
 
-	//render model:
-	XMMATRIX S = XMMatrixScaling(0.001, 0.001, 0.001);
-
-	S = XMMatrixScaling(0.1, 0.1, 0.1);
-	//S = XMMatrixScaling(10, 10, 10);
-	XMMATRIX T, R,M;
-	T = XMMatrixTranslation(0, 0, 20);
-	R = XMMatrixRotationX(-XM_PIDIV2);
-	static float angle = 0;
-	angle += elapsed / 7000000.0;
-	XMMATRIX Ry = XMMatrixRotationY(angle);
-	M = S*R*Ry*T;
-	constantbuffer.World = XMMatrixTranspose(M);	
-	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
-	// Render terrain
-	g_pImmediateContext->VSSetShader(g_pVertexShader, NULL, 0);
-	g_pImmediateContext->PSSetShader(g_pPixelShader, NULL, 0);
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
-	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
-	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pTextureRV);
-	g_pImmediateContext->VSSetShaderResources(0, 1, &g_pTextureRV);
-	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_3ds, &stride, &offset);
-	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
-	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
+	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+    g_pImmediateContext->Draw( 36, 0 );
 
 	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
-	g_pImmediateContext->Draw(model_vertex_anz, 0);
+
+
+	//render all the walls of the level
+	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
+	level1.render_level(dead, g_pImmediateContext, g_pVertexBuffer, &view, &g_Projection, g_pCBuffer);
+
+	for (int i = 0; i < 5; i++)
+	{
+		if (!enemies[i].dead)
+		{
+		for (int j = 0; j < 6; j++)
+		{
+			XMFLOAT3 toVector;
+			toVector.x = enemies[i].position.x - bullets[j].projectile.position.x;
+			toVector.z = enemies[i].position.z - bullets[j].projectile.position.z;
+
+			float length = sqrt(pow(toVector.x, 2) + pow(toVector.z, 2));
+
+			if (length < 1.0)
+				enemies[i].dead = true;
+				
+		}
+
+			animateEnemies(elapsed);
+
+			XMFLOAT3 toVector;
+			toVector.x = enemies[i].position.x - (cam.position.x * -1);
+			toVector.z = enemies[i].position.z - (cam.position.z * -1);
+
+			float length = sqrt(pow(toVector.x, 2) + pow(toVector.z, 2));
+
+			if (length < 1.0)
+				dead = true;
+
+			constantbuffer.World = XMMatrixTranspose(enemies[i].get_matrix(view));
+			constantbuffer.View = XMMatrixTranspose(view);
+			constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+			g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+			g_pImmediateContext->PSSetShaderResources(0, 1, &g_pEnemyTex);
+
+			g_pImmediateContext->Draw(12, 0);
+		}
+	}
+
+	/*
+	//flashlight
+	XMMATRIX GT = XMMatrixTranslation(-0.3f, 0, 10);
+	XMMATRIX GS = XMMatrixScaling(2,2,1);
+
+	constantbuffer.World = XMMatrixTranspose(GS * GT);
+	constantbuffer.View = XMMatrixTranspose(view);
+	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+	constantbuffer.e = 1;
+	constantbuffer.f = 1;
+	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pFlashTex);
+	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+	g_pImmediateContext->VSSetShader(g_pVertexShaderHUD, NULL, 0);
+	g_pImmediateContext->Draw(12, 0);
+	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
+	constantbuffer.e = 0;
+	constantbuffer.f = 0;
+	*/
+
+	//drawBullets
+	for (int i = 0; i < 6; i++)
+	{
+
+
+		XMMATRIX S = XMMatrixScaling(0.2f, 0.2f, 1);
+		XMMATRIX T = XMMatrixTranslation(0.0f, -0.5f, 1.0f);
+		bullets[i].projectile.position = bullets[i].projectile.position + (bullets[i].impulse * 0.2f);
+
+		if (abs(bullets[i].projectile.position.z) <= 80 || abs(bullets[i].projectile.position.x) <= 80)
+		{
+		constantbuffer.World = XMMatrixTranspose(S * T * bullets[i].projectile.get_matrix(view));
+		constantbuffer.View = XMMatrixTranspose(view);
+		constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+		g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+		g_pImmediateContext->PSSetShaderResources(0, 1, &g_pBulletTex);
+
+		g_pImmediateContext->Draw(12, 0);
+		}
+	}
+
 	
+	//Draw gun
+	if (!dead)
+	{
+	XMMATRIX GT = XMMatrixTranslation(0.2f , -3, 9);
+	constantbuffer.World = XMMatrixTranspose(GT);
+	constantbuffer.View = XMMatrixTranspose(view);
+	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+	constantbuffer.e = 1;
+	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGunTex);
+	
+	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+	g_pImmediateContext->VSSetShader(g_pVertexShaderHUD, NULL, 0);
+	g_pImmediateContext->Draw(12, 0);
+	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
+	}
+	constantbuffer.e = 0;
 
     //
     // Present our back buffer to our front buffer
     //
     g_pSwapChain->Present( 0, 0 );
 }
-
