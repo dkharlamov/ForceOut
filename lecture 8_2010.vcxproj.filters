@@ -16,6 +16,7 @@
   <ItemGroup>
     <ClCompile Include="homework 4.cpp" />
     <ClCompile Include="XMF3.cpp" />
+    <ClCompile Include="load3ds.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CLInclude Include="resource.h">

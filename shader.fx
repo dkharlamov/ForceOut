@@ -76,7 +76,7 @@ float4 PS( PS_INPUT input) : SV_Target
 
 		float fogFactor = depth;
 
-		float4 colorf = (fogFactor * color + (1.00 - fogFactor) * fogColor);
+		float4 colorf = (pow(fogFactor, 2.5) * color + (1.00 - fogFactor) * fogColor);
 
 		//if (depth > 0.02f)
 		//	colorf = color;

@@ -6,6 +6,8 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <time.h>
+#include <io.h>
 #include "resource.h"
 using namespace std;
 
@@ -17,12 +19,19 @@ XMFLOAT3 operator*(const XMMATRIX &lhs, XMFLOAT3 rhs);
 XMFLOAT3 operator*(XMFLOAT3 rhs, const XMMATRIX &lhs);
 XMFLOAT3 operator*(const XMFLOAT3 lhs, float rhs);
 XMFLOAT3 operator*(float rhs, const XMFLOAT3 lhs);
+float Vec3Length(const XMFLOAT3 &v);
+float Vec3Dot(XMFLOAT3 a, XMFLOAT3 b);
+XMFLOAT3 Vec3Cross(XMFLOAT3 a, XMFLOAT3 b);
+XMFLOAT3 Vec3Normalize(const  XMFLOAT3 &a);
+bool Load3DS(char *filename, ID3D11Device* g_pd3dDevice, ID3D11Buffer **ppVertexBuffer, int *vertex_count);
+bool LoadOBJ(char * filename, ID3D11Device * g_pd3dDevice, ID3D11Buffer ** ppVertexBuffer, int * vertex_count);
 
 
 struct SimpleVertex
 	{
 	XMFLOAT3 Pos;
 	XMFLOAT2 Tex;
+	XMFLOAT3 Norm;
 	};
 
 

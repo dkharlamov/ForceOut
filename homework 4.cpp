@@ -48,6 +48,9 @@ ID3D11PixelShader*                  g_pPixelShader = NULL;
 ID3D11InputLayout*                  g_pVertexLayout = NULL;
 ID3D11Buffer*                       g_pVertexBuffer = NULL;
 ID3D11Buffer*                       g_pVertexBuffer_sky = NULL;
+ID3D11Buffer*                       g_pVertexBuffer_sphere = NULL;
+int									model_vertex_anz = 0;
+
 //states for turning off and on the depth buffer
 ID3D11DepthStencilState				*ds_on, *ds_off;
 
@@ -521,6 +524,8 @@ HRESULT InitDevice()
     UINT offset = 0;
     g_pImmediateContext->IASetVertexBuffers( 0, 1, &g_pVertexBuffer, &stride, &offset );
 
+
+	Load3DS("sphere.3ds", g_pd3dDevice, &g_pVertexBuffer_sphere, &model_vertex_anz);
  
     // Set primitive topology
     g_pImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
@@ -954,7 +959,9 @@ UINT offset = 0;
 	t += 0.001;
 
     ConstantBuffer constantbuffer;
-	
+
+
+
 
     // Clear the back buffer
     float ClearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f }; // red, green, blue, alpha
@@ -1106,6 +1113,28 @@ UINT offset = 0;
 	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
 	}
 	constantbuffer.e = 0;
+
+
+	XMMATRIX M = XMMatrixIdentity() * XMMatrixTranslation(0, 0, 7);
+	constantbuffer.World = XMMatrixTranspose(M);
+	constantbuffer.View = XMMatrixTranspose(view);
+	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+	g_pImmediateContext->VSSetShader(g_pVertexShader, NULL, 0);
+	g_pImmediateContext->PSSetShader(g_pPixelShader, NULL, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pTextureRV);
+	g_pImmediateContext->VSSetShaderResources(0, 1, &g_pTextureRV);
+	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sphere, &stride, &offset);
+	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
+
+	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+//	g_pImmediateContext->Draw(model_vertex_anz, 0);
+	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
+
+	
 
     //
     // Present our back buffer to our front buffer
