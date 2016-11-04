@@ -69,6 +69,7 @@ XMMATRIX                            g_World;
 XMMATRIX                            g_View;
 XMMATRIX                            g_Projection;
 XMFLOAT4                            g_vMeshColor( 0.7f, 0.7f, 0.7f, 1.0f );
+CXBOXController *gamepad = new CXBOXController(1);
 
 camera								cam;
 level								level1;
@@ -525,7 +526,8 @@ HRESULT InitDevice()
     g_pImmediateContext->IASetVertexBuffers( 0, 1, &g_pVertexBuffer, &stride, &offset );
 
 
-	Load3DS("sphere.3ds", g_pd3dDevice, &g_pVertexBuffer_sphere, &model_vertex_anz);
+	//Load3DS("sphere.3ds", g_pd3dDevice, &g_pVertexBuffer_sphere, &model_vertex_anz);
+	LoadCatmullClark(L"ccsphere.cmp", g_pd3dDevice, &g_pVertexBuffer_sphere, &model_vertex_anz);
  
     // Set primitive topology
     g_pImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
@@ -621,7 +623,7 @@ HRESULT InitDevice()
 	g_pd3dDevice->CreateDepthStencilState(&DS_ON, &ds_on);
 	g_pd3dDevice->CreateDepthStencilState(&DS_OFF, &ds_off);
 
-	level1.init("level.bmp");
+	level1.init("testLevel.bmp");
 	level1.init_texture(g_pd3dDevice, L"wall1.jpg");
 	level1.init_texture(g_pd3dDevice, L"wall2.jpg");
 	level1.init_texture(g_pd3dDevice, L"floor.jpg");
@@ -693,6 +695,9 @@ void OnChar(HWND hwnd, UINT ch, int cRepeat)
 ///////////////////////////////////
 void OnLBU(HWND hwnd, int x, int y, UINT keyFlags)
 	{
+	//Ray outray;
+	//outray.P0 = XMFLOAT3(cam.position.x, cam.position.y, cam.position.z);
+	//outray.P1 = XMFLOAT3(outray.P0.x + cam.fwd.x, outray.P0.y + cam.fwd.y, outray.P0.z + cam.fwd.z);
 	}
 ///////////////////////////////////
 //		This Function is called every time the Right Mouse Button is up
@@ -957,10 +962,45 @@ UINT offset = 0;
     // Update our time
     static float t = 0.0f;
 	t += 0.001;
+	static StopWatchMicro_ timer;
+	TIME elapsed = timer.elapse_micro();
+	timer.start();
 
     ConstantBuffer constantbuffer;
 
+	if (gamepad->IsConnected())
+	{
+		if (gamepad->GetState().Gamepad.wButtons & XINPUT_GAMEPAD_Y)
+			cam.w = 1;
+		else
+			cam.w = 0;
+		if (gamepad->GetState().Gamepad.wButtons & XINPUT_GAMEPAD_A)
+		{
 
+			cam.s = 1;
+		}
+		else
+			cam.s = 0;
+
+	}
+	SHORT lx = gamepad->GetState().Gamepad.sThumbLX;
+	SHORT ly = gamepad->GetState().Gamepad.sThumbLY;
+
+	SHORT rx = gamepad->GetState().Gamepad.sThumbRX;
+	SHORT ry = gamepad->GetState().Gamepad.sThumbRY;
+
+	if (abs(ry) > 3000)
+	{
+		float angle_x = (float)ry / 32000.0;
+		angle_x *= 0.05;
+		cam.rotation.x += angle_x;
+	}
+	if (abs(rx) > 3000)
+	{
+		float angle_y = (float)rx / 32000.0;
+		angle_y *= 0.05;
+		cam.rotation.y -= angle_y;
+	}
 
 
     // Clear the back buffer
@@ -970,9 +1010,6 @@ UINT offset = 0;
     // Clear the depth buffer to 1.0 (max depth)
     g_pImmediateContext->ClearDepthStencilView( g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0 );
 
-	static StopWatchMicro_ timer;
-	TIME elapsed = timer.elapse_micro();
-	timer.start();
 
 	
 	if (dead)
@@ -1042,7 +1079,7 @@ UINT offset = 0;
 			float length = sqrt(pow(toVector.x, 2) + pow(toVector.z, 2));
 
 			if (length < 1.0)
-				dead = true;
+		//		dead = true;
 
 			constantbuffer.World = XMMatrixTranspose(enemies[i].get_matrix(view));
 			constantbuffer.View = XMMatrixTranspose(view);
@@ -1050,7 +1087,7 @@ UINT offset = 0;
 			g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
 			g_pImmediateContext->PSSetShaderResources(0, 1, &g_pEnemyTex);
 
-			g_pImmediateContext->Draw(12, 0);
+		//	g_pImmediateContext->Draw(12, 0);
 		}
 	}
 
@@ -1115,10 +1152,14 @@ UINT offset = 0;
 	constantbuffer.e = 0;
 
 
-	XMMATRIX M = XMMatrixIdentity() * XMMatrixTranslation(0, 0, 7);
+	XMMATRIX M = XMMatrixIdentity();
+	T = XMMatrixTranslation(0, 0, 8);
+	M = XMMatrixScaling(0.01f, 0.01f, 0.01f) * T;
 	constantbuffer.World = XMMatrixTranspose(M);
 	constantbuffer.View = XMMatrixTranspose(view);
 	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+	constantbuffer.sphere = 1;
+	constantbuffer.sp_pos = XMFLOAT3(0,0,8);
 	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
 	g_pImmediateContext->VSSetShader(g_pVertexShader, NULL, 0);
 	g_pImmediateContext->PSSetShader(g_pPixelShader, NULL, 0);
@@ -1130,10 +1171,10 @@ UINT offset = 0;
 	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
 	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
 
-	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
-//	g_pImmediateContext->Draw(model_vertex_anz, 0);
 	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
-
+	g_pImmediateContext->Draw(model_vertex_anz, 0);
+	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
+	constantbuffer.sphere = 0;
 	
 
     //

@@ -9,11 +9,15 @@
 #include <time.h>
 #include <io.h>
 #include "resource.h"
+#include <XInput.h>
+
+#pragma comment(lib, "XInput.lib")
 using namespace std;
 
 typedef long double TIME;
 
 XMFLOAT3 operator+(const XMFLOAT3 lhs, XMFLOAT3 rhs);
+bool operator==(const XMFLOAT3 lhs, XMFLOAT3 rhs);
 XMFLOAT3 operator-(const XMFLOAT3 lhs, XMFLOAT3 rhs);
 XMFLOAT3 operator*(const XMMATRIX &lhs, XMFLOAT3 rhs);
 XMFLOAT3 operator*(XMFLOAT3 rhs, const XMMATRIX &lhs);
@@ -25,6 +29,7 @@ XMFLOAT3 Vec3Cross(XMFLOAT3 a, XMFLOAT3 b);
 XMFLOAT3 Vec3Normalize(const  XMFLOAT3 &a);
 bool Load3DS(char *filename, ID3D11Device* g_pd3dDevice, ID3D11Buffer **ppVertexBuffer, int *vertex_count);
 bool LoadOBJ(char * filename, ID3D11Device * g_pd3dDevice, ID3D11Buffer ** ppVertexBuffer, int * vertex_count);
+bool LoadCatmullClark(LPCTSTR filename, ID3D11Device* g_pd3dDevice, ID3D11Buffer **ppVertexBuffer, int *vertex_count); 
 
 
 struct SimpleVertex
@@ -43,8 +48,152 @@ struct ConstantBuffer
 	int d;
 	int e;
 	int f;
+	int sphere;
+	XMFLOAT3 sp_pos;
+	XMFLOAT3 w_pos;
 	};
 //*****************************************
+
+
+
+
+
+//********************************
+//struct D3DXVECTOR3 {float x,y,z;};
+//struct Ray {D3DXVECTOR3 P0,P1;};
+/*
+int D3D_intersect_RayTriangle(Ray R, XMFLOAT3 A, XMFLOAT3 B, XMFLOAT3 C, XMFLOAT3* I)
+{
+	XMFLOAT3    u, v, n;             // triangle vectors
+	XMFLOAT3    dir, w0, w;          // ray vectors
+
+										//	D3DXVec3Normalize(&R.P1,&R.P1);
+
+	float     r, a, b;             // params to calc ray-plane intersect
+
+								   // get triangle edge vectors and plane normal
+								   //a,b,c V0,1,2
+	u = B - A;
+	v = C - A;
+	n = Vec3Cross(u, v);             // cross product
+	if (n == XMFLOAT3(0, 0, 0))            // triangle is degenerate
+		return -1;                 // do not deal with this case
+
+	dir = R.P1 - R.P0;//R.P1 - R.P0;             // ray direction vector
+	w0 = R.P0 - A;
+
+
+	a = -Vec3Dot(n, w0);
+	b = Vec3Dot(n, dir);
+	if (fabs(b) < 0.000001)
+	{     // ray is parallel to triangle plane
+		if (a == 0)                // ray lies in triangle plane
+			return 2;
+		else return 0;             // ray disjoint from plane
+	}
+
+	// get intersect point of ray with triangle plane
+	r = a / b;
+	if (r < 0.0)
+	{
+		dir = dir * -1;
+		//w0 = R.P0 - A;
+		//a = -dot(n,w0);
+		b = Vec3Dot(n, dir);
+		r = a / b;
+	}// ray goes away from triangle
+
+	 // for a segment, also test if (r > 1.0) => no intersect
+
+	*I = R.P0 + r * dir;           // intersect point of ray and plane
+
+								   // is I inside T?
+	float    uu, uv, vv, wu, wv, D;
+	uu = Vec3Dot(u, u);
+	uv = Vec3Dot(u, v);
+	vv = Vec3Dot(v, v);
+	w = *I - A;
+	wu = Vec3Dot(w, u);
+	wv = Vec3Dot(w, v);
+	D = uv * uv - uu * vv;
+
+	// get and test parametric coords
+	float s, t;
+	s = (uv * wv - vv * wu) / D;
+	if (s < 0.0 || s > 1.0)        // I is outside T
+		return 0;
+	t = (uv * wu - uu * wv) / D;
+	if (t < 0.0 || (s + t) > 1.0)  // I is outside T
+		return 0;
+
+	return 1;                      // I is in T
+}
+*/
+
+
+
+
+
+
+class CXBOXController
+{
+private:
+	XINPUT_STATE _controllerState;
+	int _controllerNum;
+public:
+	CXBOXController(int playerNumber)
+	{
+		// Set the Controller Number
+		_controllerNum = playerNumber - 1;
+	}
+
+	XINPUT_STATE GetState()
+	{
+		// Zeroise the state
+		ZeroMemory(&_controllerState, sizeof(XINPUT_STATE));
+
+		// Get the state
+		XInputGetState(_controllerNum, &_controllerState);
+
+		return _controllerState;
+	}
+
+	bool IsConnected()
+	{
+		// Zeroise the state
+		ZeroMemory(&_controllerState, sizeof(XINPUT_STATE));
+
+		// Get the state
+		DWORD Result = XInputGetState(_controllerNum, &_controllerState);
+
+		if (Result == ERROR_SUCCESS)
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	void Vibrate(int leftVal = 0, int rightVal = 0)
+	{
+		// Create a Vibraton State
+		XINPUT_VIBRATION Vibration;
+
+		// Zeroise the Vibration
+		ZeroMemory(&Vibration, sizeof(XINPUT_VIBRATION));
+
+		// Set the Vibration Values
+		Vibration.wLeftMotorSpeed = leftVal;
+		Vibration.wRightMotorSpeed = rightVal;
+
+		// Vibrate the controller
+		XInputSetState(_controllerNum, &Vibration);
+	}
+
+
+};
 
 
 class StopWatchMicro_
@@ -331,6 +480,7 @@ class level
 			{
 			return walls.size();
 			}
+
 		void render_level(bool ded, ID3D11DeviceContext* ImmediateContext,ID3D11Buffer *vertexbuffer_wall,XMMATRIX *view, XMMATRIX *projection, ID3D11Buffer* dx_cbuffer)
 			{
 			//set up everything for the waqlls/floors/ceilings:
@@ -356,6 +506,7 @@ class level
 				wall_matrix = wall_matrix;// *S;
 
 				constantbuffer.World = XMMatrixTranspose(wall_matrix);
+				constantbuffer.w_pos = XMFLOAT3(wall_matrix._41, wall_matrix._42, wall_matrix._43);
 				
 				ImmediateContext->UpdateSubresource(dx_cbuffer, 0, NULL, &constantbuffer, 0, 0);
 				ImmediateContext->VSSetConstantBuffers(0, 1, &dx_cbuffer);
@@ -367,7 +518,6 @@ class level
 	};
 
 
-
 	class camera
 		{
 		private:
@@ -376,10 +526,11 @@ class level
 			int w, s, a, d;
 			XMFLOAT3 position;
 			XMFLOAT3 rotation;
+			XMFLOAT3 fwd;
 			camera()
 				{
 				w = s = a = d = 0;
-				position = rotation = XMFLOAT3(0, 0, 0);
+				position = rotation = fwd = XMFLOAT3(0, 0, 0);
 				}
 			void animation(TIME t, float factor, level *levl)
 				{
@@ -396,7 +547,9 @@ class level
 				XMVECTOR si = XMLoadFloat3(&side);
 				si = XMVector3TransformCoord(si, R);
 				XMStoreFloat3(&side, si);
-				
+
+				fwd = forward;
+
 				if (w)
 					{
 					position.x -= (forward.x * t * factor);
@@ -464,6 +617,9 @@ class level
 					}
 					}
 				}
+
+
+
 			XMMATRIX get_matrix(XMMATRIX *view)
 				{
 				XMMATRIX R, T;

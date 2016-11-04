@@ -341,6 +341,56 @@ XMFLOAT3 Vec3Normalize(const  XMFLOAT3 &a)
 
 
 
+bool LoadCatmullClark(LPCTSTR filename, ID3D11Device* g_pd3dDevice, ID3D11Buffer **ppVertexBuffer, int *vertex_count)
+{
+
+	struct CatmullVertex
+	{
+		XMFLOAT3 pos;
+		XMFLOAT3 normal;
+		XMFLOAT2 tex;
+	};
+	HANDLE file;
+	std::vector<SimpleVertex> data;
+	DWORD burn;
+
+	file = CreateFile(filename, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	SetFilePointer(file, 80, NULL, FILE_BEGIN);
+	ReadFile(file, vertex_count, 4, &burn, NULL);
+
+	for (int i = 0; i < *vertex_count; ++i)
+	{
+		CatmullVertex vertData;
+		ReadFile(file, &vertData, sizeof(CatmullVertex), &burn, NULL);
+		SimpleVertex sv;
+		sv.Pos = vertData.pos;
+		//sv.Normal = vertData.normal;
+		sv.Tex = vertData.tex;
+		data.push_back(sv);
+	}
+
+	D3D11_BUFFER_DESC desc = {
+		sizeof(SimpleVertex) * *vertex_count,
+		D3D11_USAGE_DEFAULT,
+		D3D11_BIND_VERTEX_BUFFER,
+		0, 0,
+		sizeof(SimpleVertex)
+	};
+	D3D11_SUBRESOURCE_DATA subdata = {
+		&(data[0]), 0, 0
+	};
+	HRESULT hr = g_pd3dDevice->CreateBuffer(&desc, &subdata, ppVertexBuffer);
+
+	if (FAILED(hr))
+	{
+		return false;
+	}
+	return true;
+}
+
+
+
 bool LoadOBJ(char * filename, ID3D11Device * g_pd3dDevice, ID3D11Buffer ** ppVertexBuffer, int * vertex_count)
 {
 	ID3D11Buffer *pVertexBuffer = NULL;

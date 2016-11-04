@@ -19,6 +19,9 @@ matrix Projection;
 int d;
 int e;
 int f;
+int sphere;
+float3 sp_pos;
+float3 w_pos;
 };
 
 
@@ -94,6 +97,20 @@ float4 PS( PS_INPUT input) : SV_Target
 	{
 		color.r = 1;
 	}
+
+	if (sphere == 0)
+	{
+		float x = pow(w_pos.x - sp_pos.x, 2);
+		float y = pow(w_pos.y - sp_pos.y, 2);
+		float z = pow(w_pos.z - sp_pos.z, 2);
+
+		float l = sqrt(x + y + z);
+
+		if(l < 1000000000.0)
+			color.r = 1;
+	}
+
+
 	return color;
 }
 

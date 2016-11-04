@@ -56,3 +56,8 @@ XMFLOAT3 operator*(float rhs, const XMFLOAT3 lhs)
 	res.z = lhs.z * rhs;
 	return res;
 }
+
+bool operator==(const XMFLOAT3 lhs, XMFLOAT3 rhs)
+{
+	return (lhs.x == rhs.x) && (lhs.y == rhs.y) && (lhs.z == rhs.z);
+}
