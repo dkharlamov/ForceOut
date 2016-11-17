@@ -93,96 +93,108 @@ c:\program files (x86)\microsoft directx sdk (june 2010)\include\xnamathconvert.
 c:\program files (x86)\microsoft directx sdk (june 2010)\include\xnamathvector.inl(1269): warning C4838: conversion from 'unsigned int' to 'INT' requires a narrowing conversion
 c:\program files (x86)\microsoft directx sdk (june 2010)\include\xnamathmisc.inl(518): warning C4838: conversion from 'unsigned int' to 'INT' requires a narrowing conversion
 c:\program files (x86)\microsoft directx sdk (june 2010)\include\xnamathmisc.inl(519): warning C4838: conversion from 'unsigned int' to 'INT' requires a narrowing conversion
-c:\users\cdev\desktop\forceout\groundwork.h(188): warning C4244: '=': conversion from 'int' to 'WORD', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(189): warning C4244: '=': conversion from 'int' to 'WORD', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(221): warning C4552: '/': operator has no effect; expected operator with side-effect
-c:\users\cdev\desktop\forceout\groundwork.h(259): warning C4100: 'ViewMatrix': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\groundwork.h(409): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(411): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(413): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(415): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(420): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(425): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(458): warning C4018: '>=': signed/unsigned mismatch
-c:\users\cdev\desktop\forceout\groundwork.h(468): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(476): warning C4018: '>=': signed/unsigned mismatch
-c:\users\cdev\desktop\forceout\groundwork.h(499): warning C4018: '<': signed/unsigned mismatch
-c:\users\cdev\desktop\forceout\groundwork.h(503): warning C4018: '>=': signed/unsigned mismatch
-c:\users\cdev\desktop\forceout\groundwork.h(555): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(556): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(557): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(564): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(565): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(566): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(573): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(574): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(575): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(582): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(583): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(584): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(589): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(590): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(591): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(598): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(599): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(600): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(605): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(606): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(607): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(614): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(615): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\groundwork.h(616): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\homework 4.cpp(661): warning C4316: '__m128': object allocated on the heap may not be aligned 16
-c:\users\cdev\desktop\forceout\homework 4.cpp(662): warning C4100: 'keyFlags': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(662): warning C4100: 'y': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(662): warning C4100: 'x': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(662): warning C4100: 'fDoubleClick': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(662): warning C4100: 'hwnd': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\groundwork.h(60): warning C4244: '=': conversion from 'double' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(61): warning C4244: '=': conversion from 'double' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(62): warning C4244: '=': conversion from 'double' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(80): warning C4018: '>=': signed/unsigned mismatch
+c:\users\cdev\desktop\forceout\groundwork.h(237): warning C4018: '>=': signed/unsigned mismatch
+c:\users\cdev\desktop\forceout\groundwork.h(264): warning C4018: '<': signed/unsigned mismatch
+c:\users\cdev\desktop\forceout\groundwork.h(267): warning C4018: '<': signed/unsigned mismatch
+c:\users\cdev\desktop\forceout\groundwork.h(276): warning C4244: '=': conversion from 'int' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(277): warning C4244: '=': conversion from 'int' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(278): warning C4244: '=': conversion from 'int' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(279): warning C4244: '=': conversion from 'int' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(363): warning C4244: '=': conversion from 'int' to 'WORD', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(364): warning C4244: '=': conversion from 'int' to 'WORD', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(396): warning C4552: '/': operator has no effect; expected operator with side-effect
+c:\users\cdev\desktop\forceout\groundwork.h(434): warning C4100: 'ViewMatrix': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\groundwork.h(585): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(587): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(589): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(591): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(596): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(601): warning C4244: 'argument': conversion from 'int' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(635): warning C4018: '>=': signed/unsigned mismatch
+c:\users\cdev\desktop\forceout\groundwork.h(645): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(653): warning C4018: '>=': signed/unsigned mismatch
+c:\users\cdev\desktop\forceout\groundwork.h(676): warning C4018: '<': signed/unsigned mismatch
+c:\users\cdev\desktop\forceout\groundwork.h(680): warning C4018: '>=': signed/unsigned mismatch
+c:\users\cdev\desktop\forceout\groundwork.h(734): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(735): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(736): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(743): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(744): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(745): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(752): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(753): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(754): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(761): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(762): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(763): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(768): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(769): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(770): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(777): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(778): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(779): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(784): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(785): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(786): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(793): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(794): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\groundwork.h(795): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\homework 4.cpp(681): warning C4316: '__m128': object allocated on the heap may not be aligned 16
 c:\users\cdev\desktop\forceout\homework 4.cpp(682): warning C4100: 'keyFlags': unreferenced formal parameter
 c:\users\cdev\desktop\forceout\homework 4.cpp(682): warning C4100: 'y': unreferenced formal parameter
 c:\users\cdev\desktop\forceout\homework 4.cpp(682): warning C4100: 'x': unreferenced formal parameter
 c:\users\cdev\desktop\forceout\homework 4.cpp(682): warning C4100: 'fDoubleClick': unreferenced formal parameter
 c:\users\cdev\desktop\forceout\homework 4.cpp(682): warning C4100: 'hwnd': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(689): warning C4100: 'cRepeat': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(689): warning C4100: 'ch': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(689): warning C4100: 'hwnd': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(696): warning C4100: 'keyFlags': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(696): warning C4100: 'y': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(696): warning C4100: 'x': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(696): warning C4100: 'hwnd': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(705): warning C4100: 'keyFlags': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(705): warning C4100: 'y': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(705): warning C4100: 'x': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(705): warning C4100: 'hwnd': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(715): warning C4100: 'y': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(767): warning C4100: 'lpCreateStruct': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(777): warning C4100: 'id': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(777): warning C4100: 'hwnd': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(783): warning C4100: 'flags': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(783): warning C4100: 'cRepeat': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(783): warning C4100: 'fDown': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(783): warning C4100: 'hwnd': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(804): warning C4100: 'flags': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(804): warning C4100: 'cRepeat': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(804): warning C4100: 'fDown': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(804): warning C4100: 'hwnd': unreferenced formal parameter
-c:\users\cdev\desktop\forceout\homework 4.cpp(806): warning C4189: 'x': local variable is initialized but not referenced
-c:\users\cdev\desktop\forceout\homework 4.cpp(910): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\homework 4.cpp(912): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\homework 4.cpp(920): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\homework 4.cpp(922): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\homework 4.cpp(702): warning C4100: 'keyFlags': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(702): warning C4100: 'y': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(702): warning C4100: 'x': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(702): warning C4100: 'fDoubleClick': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(702): warning C4100: 'hwnd': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(709): warning C4100: 'cRepeat': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(709): warning C4100: 'ch': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(709): warning C4100: 'hwnd': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(716): warning C4100: 'keyFlags': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(716): warning C4100: 'y': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(716): warning C4100: 'x': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(716): warning C4100: 'hwnd': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(725): warning C4100: 'keyFlags': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(725): warning C4100: 'y': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(725): warning C4100: 'x': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(725): warning C4100: 'hwnd': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(735): warning C4100: 'y': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(787): warning C4100: 'lpCreateStruct': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(797): warning C4100: 'id': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(797): warning C4100: 'hwnd': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(803): warning C4100: 'flags': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(803): warning C4100: 'cRepeat': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(803): warning C4100: 'fDown': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(803): warning C4100: 'hwnd': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(824): warning C4100: 'flags': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(824): warning C4100: 'cRepeat': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(824): warning C4100: 'fDown': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(824): warning C4100: 'hwnd': unreferenced formal parameter
+c:\users\cdev\desktop\forceout\homework 4.cpp(826): warning C4189: 'x': local variable is initialized but not referenced
 c:\users\cdev\desktop\forceout\homework 4.cpp(930): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
 c:\users\cdev\desktop\forceout\homework 4.cpp(932): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
 c:\users\cdev\desktop\forceout\homework 4.cpp(940): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
 c:\users\cdev\desktop\forceout\homework 4.cpp(942): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\homework 4.cpp(945): warning C4244: '+=': conversion from 'TIME' to 'float', possible loss of data
-c:\users\cdev\desktop\forceout\homework 4.cpp(946): warning C4244: '=': conversion from 'double' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\homework 4.cpp(947): warning C4244: '=': conversion from 'double' to 'FLOAT', possible loss of data
-c:\users\cdev\desktop\forceout\homework 4.cpp(994): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-c:\users\cdev\desktop\forceout\homework 4.cpp(1000): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-c:\users\cdev\desktop\forceout\homework 4.cpp(1120): warning C4456: declaration of 'T' hides previous local declaration
-  c:\users\cdev\desktop\forceout\homework 4.cpp(1030): note: see declaration of 'T'
-c:\users\cdev\desktop\forceout\homework 4.cpp(986): warning C4189: 'lx': local variable is initialized but not referenced
-c:\users\cdev\desktop\forceout\homework 4.cpp(987): warning C4189: 'ly': local variable is initialized but not referenced
+c:\users\cdev\desktop\forceout\homework 4.cpp(950): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\homework 4.cpp(952): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\homework 4.cpp(960): warning C4244: '-=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\homework 4.cpp(962): warning C4244: '+=': conversion from 'TIME' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\homework 4.cpp(965): warning C4244: '+=': conversion from 'TIME' to 'float', possible loss of data
+c:\users\cdev\desktop\forceout\homework 4.cpp(966): warning C4244: '=': conversion from 'double' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\homework 4.cpp(967): warning C4244: '=': conversion from 'double' to 'FLOAT', possible loss of data
+c:\users\cdev\desktop\forceout\homework 4.cpp(1014): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\cdev\desktop\forceout\homework 4.cpp(1020): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\cdev\desktop\forceout\homework 4.cpp(1140): warning C4456: declaration of 'T' hides previous local declaration
+  c:\users\cdev\desktop\forceout\homework 4.cpp(1050): note: see declaration of 'T'
+c:\users\cdev\desktop\forceout\homework 4.cpp(1254): warning C4244: 'argument': conversion from 'TIME' to 'long', possible loss of data
+c:\users\cdev\desktop\forceout\homework 4.cpp(1006): warning C4189: 'lx': local variable is initialized but not referenced
+c:\users\cdev\desktop\forceout\homework 4.cpp(1007): warning C4189: 'ly': local variable is initialized but not referenced
   lecture 8_2010.vcxproj -> C:\Users\CDEV\Desktop\ForceOut\Debug\homework 4.exe
   lecture 8_2010.vcxproj -> C:\Users\CDEV\Desktop\ForceOut\Debug\homework 4.pdb (Full PDB)

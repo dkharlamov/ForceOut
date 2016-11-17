@@ -1,3 +1,4 @@
+
 #include "groundwork.h"
 
 bool similar_pos(XMFLOAT3 a, XMFLOAT3 b, float crit)
@@ -270,32 +271,7 @@ bool Load3DS(char *filename, ID3D11Device* g_pd3dDevice, ID3D11Buffer **ppVertex
 	}
 	//the insanity of performing gouraud lighting:
 	//first, lets have a list with flags what we already have visited:
-	int *flags = new int[vertex_anz];
-	for (int ii = 0; ii < vertex_anz; ii++)
-		flags[ii] = 0;//not vistied
-
-					  //lets store all similar normal vector addresses here:
-	for (int ii = 0; ii < vertex_anz; ii++)
-	{
-		if (flags[ii] == 1)continue;
-		vector<XMFLOAT3*> normals;
-		//check all the others, if not already checked:
-		for (int uu = ii + 1; uu < vertex_anz; uu++)
-		{
-			if (flags[uu] == 1)continue;
-			if (similar_pos(noIndexVer[ii].Pos, noIndexVer[uu].Pos, 0.01))
-				normals.push_back(&noIndexVer[uu].Norm);
-		}
-		//and now, lets do the average of all of them:
-		XMFLOAT3 average_norm = noIndexVer[ii].Norm;
-		for (int uu = 0; uu < normals.size(); uu++)
-			average_norm = average_norm + *(normals[uu]);
-		average_norm = Vec3Normalize(average_norm);
-		//re aply:
-		noIndexVer[ii].Norm = average_norm;
-		for (int uu = 0; uu < normals.size(); uu++)
-			*normals[uu] = average_norm;
-	}
+	
 	//initialize d3dx verexbuff:
 	D3D11_BUFFER_DESC bd;
 	ZeroMemory(&bd, sizeof(bd));

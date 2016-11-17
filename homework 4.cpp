@@ -49,7 +49,13 @@ ID3D11InputLayout*                  g_pVertexLayout = NULL;
 ID3D11Buffer*                       g_pVertexBuffer = NULL;
 ID3D11Buffer*                       g_pVertexBuffer_sky = NULL;
 ID3D11Buffer*                       g_pVertexBuffer_sphere = NULL;
-int									model_vertex_anz = 0;
+ID3D11Buffer*                       g_pVertexBuffer_bomb = NULL;
+ID3D11Buffer*                       g_pVertexBuffer_law = NULL;
+int									model_vertex_anz = 0; 
+int									bomb_vertex_anz = 0;
+int									law_vertex_anz = 0;
+
+explosion_handler					explosionhandler;
 
 //states for turning off and on the depth buffer
 ID3D11DepthStencilState				*ds_on, *ds_off;
@@ -63,6 +69,8 @@ ID3D11ShaderResourceView*			g_pEnemyTex = NULL;
 ID3D11ShaderResourceView*			g_pDeathTex = NULL;
 ID3D11ShaderResourceView*			g_pGunTex = NULL;
 ID3D11ShaderResourceView*			g_pBulletTex = NULL;
+ID3D11ShaderResourceView*			g_pBombTex = NULL;
+ID3D11ShaderResourceView*			g_pLawTex = NULL;
 
 ID3D11SamplerState*                 g_pSamplerLinear = NULL;
 XMMATRIX                            g_World;
@@ -200,7 +208,6 @@ vector<bullet> bullets;
 HRESULT InitDevice()
 {
     HRESULT hr = S_OK;
-
 	
 	billboard enemy1;
 	enemy1.position.x = enemy1.position.z = 10;
@@ -528,7 +535,10 @@ HRESULT InitDevice()
 
 	//Load3DS("sphere.3ds", g_pd3dDevice, &g_pVertexBuffer_sphere, &model_vertex_anz);
 	LoadCatmullClark(L"ccsphere.cmp", g_pd3dDevice, &g_pVertexBuffer_sphere, &model_vertex_anz);
- 
+	LoadOBJ("Bomb.obj", g_pd3dDevice, &g_pVertexBuffer_bomb, &bomb_vertex_anz);
+	Load3DS("RPG.3DS", g_pd3dDevice, &g_pVertexBuffer_law, &law_vertex_anz);
+
+
     // Set primitive topology
     g_pImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 
@@ -563,6 +573,16 @@ HRESULT InitDevice()
 	if (FAILED(hr))
 		return hr;
 
+	hr = D3DX11CreateShaderResourceViewFromFile(g_pd3dDevice, L"Bomb_D.png", NULL, NULL, &g_pBombTex, NULL);
+	if (FAILED(hr))
+		return hr;
+
+	hr = D3DX11CreateShaderResourceViewFromFile(g_pd3dDevice, L"Tex_0006_1.jpg", NULL, NULL, &g_pLawTex, NULL);
+	if (FAILED(hr))
+		return hr;
+
+	explosionhandler.init(g_pd3dDevice, g_pImmediateContext);
+	explosionhandler.init_types(L"exp1.dds", 8, 8, 500000);
 
     // Create the sample state
     D3D11_SAMPLER_DESC sampDesc;
@@ -1146,14 +1166,14 @@ UINT offset = 0;
 	
 	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
 	g_pImmediateContext->VSSetShader(g_pVertexShaderHUD, NULL, 0);
-	g_pImmediateContext->Draw(12, 0);
+	//g_pImmediateContext->Draw(12, 0);
 	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
 	}
 	constantbuffer.e = 0;
 
 
 	XMMATRIX M = XMMatrixIdentity();
-	T = XMMatrixTranslation(0, 0, 8);
+	T = XMMatrixTranslation(-1, 0, 8);
 	M = XMMatrixScaling(0.01f, 0.01f, 0.01f) * T;
 	constantbuffer.World = XMMatrixTranspose(M);
 	constantbuffer.View = XMMatrixTranspose(view);
@@ -1171,12 +1191,74 @@ UINT offset = 0;
 	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
 	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
 
-	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
+
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	//g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
 	g_pImmediateContext->Draw(model_vertex_anz, 0);
-	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
+	//g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
 	constantbuffer.sphere = 0;
+
+
+	// GUN XMMatrixScaling(0.01, 0.01, 0.01) * XMMatrixRotationX(XM_PIDIV2) * XMMatrixRotationZ(XM_PI) * XMMatrixRotationY(XM_PI) * T;
+
+	M = XMMatrixIdentity();
+	T = XMMatrixTranslation(0, 0, 10);
+	M =  T;
+	constantbuffer.World = XMMatrixTranspose(M);
+	constantbuffer.View = XMMatrixTranspose(view);
+	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+	constantbuffer.sp_pos = XMFLOAT3(0, 0, 8);
+	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+	g_pImmediateContext->VSSetShader(g_pVertexShader, NULL, 0);
+	g_pImmediateContext->PSSetShader(g_pPixelShader, NULL, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pBombTex);
+	g_pImmediateContext->VSSetShaderResources(0, 1, &g_pTextureRV);
+	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_bomb, &stride, &offset);
+	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
+
+
+	//g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
+	g_pImmediateContext->Draw(bomb_vertex_anz, 0);
+
+
+	M = XMMatrixIdentity();
+	
+	T = XMMatrixTranslation(0.1f, -0.1f, -0.2f);
+	M = XMMatrixScaling(0.01, 0.01, 0.01) * XMMatrixRotationX(XM_PIDIV2) * XMMatrixRotationZ(XM_PI) * XMMatrixRotationY(XM_PI) * T;
+	constantbuffer.World = XMMatrixTranspose(M);
+	constantbuffer.View = XMMatrixTranspose(view);
+	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+	constantbuffer.sp_pos = XMFLOAT3(0, 0, 8);
+	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+	g_pImmediateContext->VSSetShader(g_pVertexShaderHUD, NULL, 0);
+	g_pImmediateContext->PSSetShader(g_pPixelShader, NULL, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pLawTex);
+	g_pImmediateContext->VSSetShaderResources(0, 1, &g_pTextureRV);
+	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_law, &stride, &offset);
+	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
+
+
+	//g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+	g_pImmediateContext->Draw(law_vertex_anz, 0);
 	
 
+	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+	explosionhandler.render(&view, &g_Projection, elapsed);
+	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
+	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
+
+	static int flag = 0;
+	if(flag == 0)
+		explosionhandler.new_explosion(XMFLOAT3(0, 0, 10), XMFLOAT3(1,1,1), 0, 4.0);
+	flag = 1;
     //
     // Present our back buffer to our front buffer
     //

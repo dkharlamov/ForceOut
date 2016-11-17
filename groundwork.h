@@ -16,6 +16,7 @@ using namespace std;
 
 typedef long double TIME;
 
+struct Ray { XMFLOAT3 P0,P1;};
 XMFLOAT3 operator+(const XMFLOAT3 lhs, XMFLOAT3 rhs);
 bool operator==(const XMFLOAT3 lhs, XMFLOAT3 rhs);
 XMFLOAT3 operator-(const XMFLOAT3 lhs, XMFLOAT3 rhs);
@@ -30,6 +31,259 @@ XMFLOAT3 Vec3Normalize(const  XMFLOAT3 &a);
 bool Load3DS(char *filename, ID3D11Device* g_pd3dDevice, ID3D11Buffer **ppVertexBuffer, int *vertex_count);
 bool LoadOBJ(char * filename, ID3D11Device * g_pd3dDevice, ID3D11Buffer ** ppVertexBuffer, int * vertex_count);
 bool LoadCatmullClark(LPCTSTR filename, ID3D11Device* g_pd3dDevice, ID3D11Buffer **ppVertexBuffer, int *vertex_count); 
+int D3D_intersect_RayTriangle(Ray R, XMFLOAT3 A, XMFLOAT3 B, XMFLOAT3 C, XMFLOAT3* I);
+
+HRESULT CompileShaderFromFile(WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3DBlob** ppBlobOut);
+struct vertexstruct
+{
+	XMFLOAT3 Pos;
+	XMFLOAT2 Tex;
+};
+class explosion_spots
+{
+public:
+	XMFLOAT3 pos;
+	XMFLOAT3 imp;
+	float scale;
+
+	long lifespan;
+	explosion_spots()
+	{
+		lifespan = 0;
+		pos = XMFLOAT3(0, 0, 0);
+		imp = XMFLOAT3(0, 0, 0);
+		scale = 1;
+	}
+	XMMATRIX animate(long elapsed)
+	{
+		lifespan += elapsed;
+		pos.x = pos.x + imp.x*elapsed*0.000001;
+		pos.y = pos.y + imp.y*elapsed*0.000001;
+		pos.z = pos.z + imp.z*elapsed*0.000001;
+		XMMATRIX S = XMMatrixScaling(scale, scale, scale);
+		return S*XMMatrixTranslation(pos.x, pos.y, pos.z);
+	}
+};
+class explosions_types
+{
+public:
+	vector<explosion_spots> spots;
+	ID3D11ShaderResourceView*           texture = NULL;
+	explosions_types()
+	{
+		xparts = 0;
+		yparts = 0;
+		lifespan = 3000000;//3 seconds
+	}
+	bool get_spot(int i, long elapsed, XMMATRIX *world, int *tx, int *ty)
+	{
+		if (i >= spots.size())return FALSE;
+		double maxframes = (double)xparts*yparts + 0.00000001;
+		explosion_spots *ex = &spots[i];
+		*world = ex->animate(elapsed);
+		long time_passed = ex->lifespan;
+		double frame = time_passed / (double)lifespan;
+		if (frame >= 1)
+		{
+			spots.erase(spots.begin() + i);
+			return TRUE;
+		}
+		double actualframe = maxframes * frame;
+		int aframe = (int)actualframe;
+		*tx = aframe % xparts;
+		*ty = aframe / yparts;
+		return TRUE;
+	}
+	long lifespan;
+	int xparts;
+	int yparts;
+
+};
+class explosions_constantbuffer
+{
+public:
+	XMMATRIX world, view, projection;
+	XMFLOAT4 animation_offset;
+	explosions_constantbuffer()
+	{
+		world = view = projection = XMMatrixIdentity();
+		animation_offset = XMFLOAT4(0, 0, 0, 0);
+	}
+};
+class explosion_handler
+{
+private:
+	vector<explosions_types> exp;
+	ID3D11Device*                       Device;
+	ID3D11DeviceContext*                DeviceContext;
+	ID3D11PixelShader*                  PS;
+	ID3D11VertexShader*                 VS;
+	ID3D11Buffer*                       vertexbuffer;
+	ID3D11Buffer*                       constantbuffer;
+	ID3D11InputLayout*                  VertexLayout;
+	explosions_constantbuffer			s_constantbuffer;
+public:
+	explosion_handler()
+	{
+		VertexLayout = NULL;
+		vertexbuffer = NULL;
+		PS = NULL;
+		VS = NULL;
+		Device = NULL;
+		DeviceContext = NULL;
+	}
+	HRESULT init(ID3D11Device* device, ID3D11DeviceContext* immediatecontext)
+	{
+		Device = device;
+		DeviceContext = immediatecontext;
+		// Compile the vertex shader
+		ID3DBlob* pVSBlob = NULL;
+		HRESULT hr = CompileShaderFromFile(L"explosion_shader.fx", "VS", "vs_4_0", &pVSBlob);
+		if (FAILED(hr))
+		{
+			MessageBox(NULL,
+				L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+			return hr;
+		}
+
+		// Create the vertex shader
+		hr = Device->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), NULL, &VS);
+		if (FAILED(hr))
+		{
+			pVSBlob->Release();
+			return hr;
+		}
+
+
+		// Define the input layout
+		D3D11_INPUT_ELEMENT_DESC layout[] =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		};
+		UINT numElements = ARRAYSIZE(layout);
+
+		// Create the input layout
+		hr = Device->CreateInputLayout(layout, numElements, pVSBlob->GetBufferPointer(),
+			pVSBlob->GetBufferSize(), &VertexLayout);
+		pVSBlob->Release();
+		if (FAILED(hr))
+			return hr;
+
+		ID3DBlob* pPSBlob = NULL;
+		hr = CompileShaderFromFile(L"explosion_shader.fx", "PS", "ps_5_0", &pPSBlob);
+		if (FAILED(hr))
+		{
+			MessageBox(NULL,
+				L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+			return hr;
+		}
+
+		// Create the pixel shader
+		hr = Device->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, &PS);
+		pPSBlob->Release();
+		if (FAILED(hr))
+			return hr;
+
+		// Create vertex buffer
+		vertexstruct vertices[] =
+		{
+			{ XMFLOAT3(-1,1,0),XMFLOAT2(0,0) },
+			{ XMFLOAT3(1,1,0),XMFLOAT2(1,0) },
+			{ XMFLOAT3(-1,-1,0),XMFLOAT2(0,1) },
+			{ XMFLOAT3(1,1,0),XMFLOAT2(1,0) },
+			{ XMFLOAT3(1,-1,0),XMFLOAT2(1,1) },
+			{ XMFLOAT3(-1,-1,0),XMFLOAT2(0,1) }
+		};
+
+		//initialize d3dx verexbuff:
+		D3D11_BUFFER_DESC bd;
+		ZeroMemory(&bd, sizeof(bd));
+		bd.Usage = D3D11_USAGE_DEFAULT;
+		bd.ByteWidth = sizeof(vertexstruct) * 6;
+		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		bd.CPUAccessFlags = 0;
+		D3D11_SUBRESOURCE_DATA InitData;
+		ZeroMemory(&InitData, sizeof(InitData));
+		InitData.pSysMem = vertices;
+		hr = Device->CreateBuffer(&bd, &InitData, &vertexbuffer);
+		if (FAILED(hr))
+			return FALSE;
+
+		bd.Usage = D3D11_USAGE_DEFAULT;
+		bd.ByteWidth = sizeof(explosions_constantbuffer);
+		bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		bd.CPUAccessFlags = 0;
+		hr = Device->CreateBuffer(&bd, NULL, &constantbuffer);
+		if (FAILED(hr))
+			return hr;
+		return S_OK;
+	}
+	HRESULT init_types(LPCWSTR file, int xparts, int yparts, long lifespan)
+	{
+		explosions_types et;
+		HRESULT hr = D3DX11CreateShaderResourceViewFromFile(Device, file, NULL, NULL, &et.texture, NULL);
+		if (FAILED(hr))
+			return hr;
+		et.lifespan = lifespan;
+		et.xparts = xparts;
+		et.yparts = yparts;
+		exp.push_back(et);
+		return S_OK;
+	}
+	void new_explosion(XMFLOAT3 position, XMFLOAT3 impulse, int type, float scale)
+	{
+		if (exp.size() <= 0) return;
+		if (type >= exp.size())type = 0;
+		explosion_spots ep;
+		ep.imp = impulse;
+		ep.pos = position;
+		ep.scale = scale;
+		exp[type].spots.push_back(ep);
+	}
+	void render(XMMATRIX *view, XMMATRIX *projection, long elapsed)
+	{
+		DeviceContext->IASetInputLayout(VertexLayout);
+		UINT stride = sizeof(vertexstruct);
+		UINT offset = 0;
+		DeviceContext->IASetVertexBuffers(0, 1, &vertexbuffer, &stride, &offset);
+		DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		XMVECTOR det;
+		XMMATRIX V = *view;
+		V._41 = 0;
+		V._42 = 0;
+		V._43 = 0;
+		V._44 = 1;
+		V = XMMatrixInverse(&det, V);
+		s_constantbuffer.view = XMMatrixTranspose(*view);
+		s_constantbuffer.projection = XMMatrixTranspose(*projection);
+		DeviceContext->VSSetShader(VS, NULL, 0);
+		DeviceContext->PSSetShader(PS, NULL, 0);
+		DeviceContext->VSSetConstantBuffers(0, 1, &constantbuffer);
+		DeviceContext->PSSetConstantBuffers(0, 1, &constantbuffer);
+		for (int ii = 0; ii < exp.size(); ii++)
+		{
+			DeviceContext->PSSetShaderResources(0, 1, &exp[ii].texture);
+			for (int uu = 0; uu < exp[ii].spots.size(); uu++)
+			{
+				XMMATRIX world;
+				int tx, ty;
+				if (!exp[ii].get_spot(uu, elapsed, &world, &tx, &ty)) { uu--; continue; }
+				//float scale = exp[ii].spots[uu].scale;
+
+
+				s_constantbuffer.world = XMMatrixTranspose(V*world);
+				s_constantbuffer.animation_offset.x = exp[ii].xparts;
+				s_constantbuffer.animation_offset.y = exp[ii].yparts;
+				s_constantbuffer.animation_offset.z = tx;
+				s_constantbuffer.animation_offset.w = ty;
+				DeviceContext->UpdateSubresource(constantbuffer, 0, NULL, &s_constantbuffer, 0, 0);
+				DeviceContext->Draw(6, 0);
+			}
+		}
+	}
+};
+
 
 
 struct SimpleVertex
@@ -53,85 +307,6 @@ struct ConstantBuffer
 	XMFLOAT3 w_pos;
 	};
 //*****************************************
-
-
-
-
-
-//********************************
-//struct D3DXVECTOR3 {float x,y,z;};
-//struct Ray {D3DXVECTOR3 P0,P1;};
-/*
-int D3D_intersect_RayTriangle(Ray R, XMFLOAT3 A, XMFLOAT3 B, XMFLOAT3 C, XMFLOAT3* I)
-{
-	XMFLOAT3    u, v, n;             // triangle vectors
-	XMFLOAT3    dir, w0, w;          // ray vectors
-
-										//	D3DXVec3Normalize(&R.P1,&R.P1);
-
-	float     r, a, b;             // params to calc ray-plane intersect
-
-								   // get triangle edge vectors and plane normal
-								   //a,b,c V0,1,2
-	u = B - A;
-	v = C - A;
-	n = Vec3Cross(u, v);             // cross product
-	if (n == XMFLOAT3(0, 0, 0))            // triangle is degenerate
-		return -1;                 // do not deal with this case
-
-	dir = R.P1 - R.P0;//R.P1 - R.P0;             // ray direction vector
-	w0 = R.P0 - A;
-
-
-	a = -Vec3Dot(n, w0);
-	b = Vec3Dot(n, dir);
-	if (fabs(b) < 0.000001)
-	{     // ray is parallel to triangle plane
-		if (a == 0)                // ray lies in triangle plane
-			return 2;
-		else return 0;             // ray disjoint from plane
-	}
-
-	// get intersect point of ray with triangle plane
-	r = a / b;
-	if (r < 0.0)
-	{
-		dir = dir * -1;
-		//w0 = R.P0 - A;
-		//a = -dot(n,w0);
-		b = Vec3Dot(n, dir);
-		r = a / b;
-	}// ray goes away from triangle
-
-	 // for a segment, also test if (r > 1.0) => no intersect
-
-	*I = R.P0 + r * dir;           // intersect point of ray and plane
-
-								   // is I inside T?
-	float    uu, uv, vv, wu, wv, D;
-	uu = Vec3Dot(u, u);
-	uv = Vec3Dot(u, v);
-	vv = Vec3Dot(v, v);
-	w = *I - A;
-	wu = Vec3Dot(w, u);
-	wv = Vec3Dot(w, v);
-	D = uv * uv - uu * vv;
-
-	// get and test parametric coords
-	float s, t;
-	s = (uv * wv - vv * wu) / D;
-	if (s < 0.0 || s > 1.0)        // I is outside T
-		return 0;
-	t = (uv * wu - uu * wv) / D;
-	if (t < 0.0 || (s + t) > 1.0)  // I is outside T
-		return 0;
-
-	return 1;                      // I is in T
-}
-*/
-
-
-
 
 
 
@@ -372,6 +547,7 @@ class level
 	private:
 		bitmap leveldata;
 		vector<wall*> walls;						//all wall positions
+		vector<XMFLOAT3*> wall_vertices;
 		vector<ID3D11ShaderResourceView*> textures;	//all wall textures
 		void process_level()
 			{
@@ -442,6 +618,7 @@ class level
 			{
 			if(!leveldata.read_image(level_bitmap))return;
 			process_level();
+
 			}
 		bool init_texture(ID3D11Device* pd3dDevice,LPCWSTR filename)
 			{
@@ -515,6 +692,8 @@ class level
 				ImmediateContext->Draw(6, 0);
 				}
 			}
+
+
 	};
 
 

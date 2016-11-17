@@ -371,7 +371,11 @@
       </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <FxCompile Include="explosion_shader.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </FxCompile>
+  </ItemGroup>
   <ItemGroup>
     <ClCompile Include="homework 4.cpp" />
     <ClCompile Include="load3ds.cpp" />
