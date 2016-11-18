@@ -9,6 +9,7 @@
 //--------------------------------------------------------------------------------------
 Texture2D txDiffuse : register( t0 );
 Texture2D txDepth : register(t1);
+Texture2D tx : register(t2);
 SamplerState samLinear : register( s0 );
 
 cbuffer ConstantBuffer : register( b0 )
@@ -53,6 +54,16 @@ PS_INPUT VS( VS_INPUT input )
     
     return output;
 }
+PS_INPUT VSlevel(VS_INPUT input)
+{
+	VS_INPUT output = (PS_INPUT)0;
+	output.Pos = mul(input.Pos, World);
+	output.Pos = mul(output.Pos, View);
+	output.Pos = mul(output.Pos, Projection);
+	output.Tex = input.Tex;
+
+	return output;
+}
 
 PS_INPUT VSHUD(VS_INPUT input)
 {
@@ -68,6 +79,13 @@ PS_INPUT VSHUD(VS_INPUT input)
 //--------------------------------------------------------------------------------------
 // Pixel Shader
 //--------------------------------------------------------------------------------------
+
+float4 PSlevel(PS_INPUT input) : SV_Target
+{
+	float4 color = tx.Sample(samLinear, input.Tex.xy);
+	float depth = saturate(input.Pos.z / input.Pos.w);
+	return color;
+}
 float4 PS( PS_INPUT input) : SV_Target
 {
     float4 color = txDiffuse.Sample( samLinear, input.Tex );

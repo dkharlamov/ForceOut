@@ -644,10 +644,12 @@ HRESULT InitDevice()
 	g_pd3dDevice->CreateDepthStencilState(&DS_OFF, &ds_off);
 
 	level1.init("testLevel.bmp");
-	level1.init_texture(g_pd3dDevice, L"wall1.jpg");
-	level1.init_texture(g_pd3dDevice, L"wall2.jpg");
-	level1.init_texture(g_pd3dDevice, L"floor.jpg");
-	level1.init_texture(g_pd3dDevice, L"ceiling.jpg");
+	//level1.init_texture(g_pd3dDevice, L"wall1.jpg");
+	//level1.init_texture(g_pd3dDevice, L"wall2.jpg");
+	//level1.init_texture(g_pd3dDevice, L"floor.jpg");
+	//level1.init_texture(g_pd3dDevice, L"ceiling.jpg");
+	level1.init_texture(g_pd3dDevice, L"level.jpg");
+	level1.make_big_level_object(g_pd3dDevice, &g_View, &g_Projection);
 	
     return S_OK;
 }
@@ -1063,15 +1065,15 @@ UINT offset = 0;
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sky, &stride, &offset);
     g_pImmediateContext->PSSetSamplers( 0, 1, &g_pSamplerLinear );
 
-	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
-    g_pImmediateContext->Draw( 36, 0 );
+	//g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+    //g_pImmediateContext->Draw( 36, 0 );
 
 	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
 
 
 	//render all the walls of the level
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
-	level1.render_level(dead, g_pImmediateContext, g_pVertexBuffer, &view, &g_Projection, g_pCBuffer);
+	level1.render_level(g_pImmediateContext, &view, &g_Projection, g_pCBuffer);
 
 	for (int i = 0; i < 5; i++)
 	{
