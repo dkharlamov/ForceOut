@@ -109,8 +109,9 @@ int D3D_intersect_RayTriangle(Ray R, XMFLOAT3 A, XMFLOAT3 B, XMFLOAT3 C, XMFLOAT
 
 	 // for a segment, also test if (r > 1.0) => no intersect
 
-	*I = R.P0 + r * dir;           // intersect point of ray and plane
-
+	XMFLOAT3 RESS = R.P0 + r * dir;           // intersect point of ray and plane
+	
+	*I = RESS;
 								   // is I inside T?
 	float    uu, uv, vv, wu, wv, D;
 	uu = Vec3Dot(u, u);

@@ -643,7 +643,7 @@ HRESULT InitDevice()
 	g_pd3dDevice->CreateDepthStencilState(&DS_ON, &ds_on);
 	g_pd3dDevice->CreateDepthStencilState(&DS_OFF, &ds_off);
 
-	level1.init("testLevel.bmp");
+	level1.init("level.bmp");
 	//level1.init_texture(g_pd3dDevice, L"wall1.jpg");
 	//level1.init_texture(g_pd3dDevice, L"wall2.jpg");
 	//level1.init_texture(g_pd3dDevice, L"floor.jpg");
@@ -681,6 +681,8 @@ void CleanupDevice()
 ///////////////////////////////////
 
 XMVECTOR *det = new XMVECTOR;
+XMFLOAT3 *SPHP = new XMFLOAT3;
+bool COLL = false;
 void OnLBD(HWND hwnd, BOOL fDoubleClick, int x, int y, UINT keyFlags)
 	{
 	static int clip = 0;
@@ -693,6 +695,13 @@ void OnLBD(HWND hwnd, BOOL fDoubleClick, int x, int y, UINT keyFlags)
 	R = XMMatrixInverse(det, R);
 
 	shootdirection = R * shootdirection;
+
+	Ray fwd;
+
+	fwd.P0 = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z);
+	fwd.P1 = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z) + shootdirection;
+	COLL = level1.check_wall_vertex(fwd, SPHP);
+	
 
 	bullets[clip].impulse = shootdirection;
 	bullets[clip].projectile.position = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z);
@@ -903,7 +912,7 @@ class sprites
 			{
 			//update position:
 			position.x = position.x + impulse.x; //newtons law
-			position.y = position.y + impulse.y; //newtons law
+			position.y = position.y+ impulse.y; //newtons law
 			position.z = position.z + impulse.z; //newtons law
 
 			XMMATRIX M;
@@ -1041,9 +1050,9 @@ UINT offset = 0;
 	else
 	{
 		if (shiftDown)
-			cam.animation(elapsed, 0.00001f, &level1);
+			cam.animation(elapsed, 0.00009f, &level1);
 		else
-			cam.animation(elapsed, 0.000005f, &level1);
+			cam.animation(elapsed, 0.000009f, &level1);
 	}
 
 	XMMATRIX view = cam.get_matrix(&g_View);
@@ -1175,8 +1184,16 @@ UINT offset = 0;
 
 
 	XMMATRIX M = XMMatrixIdentity();
-	T = XMMatrixTranslation(-1, 0, 8);
-	M = XMMatrixScaling(0.01f, 0.01f, 0.01f) * T;
+	static XMMATRIX ST;
+	static int fll = 0;
+	if (fll == 0)
+	{
+		ST = XMMatrixTranslation(-99,-99,-99);
+		fll = 1;
+	}
+	if(COLL)
+		ST = XMMatrixTranslation(SPHP->x, SPHP->y,SPHP->z);
+	M = XMMatrixScaling(0.01f, 0.01f, 0.01f) * ST;
 	constantbuffer.World = XMMatrixTranspose(M);
 	constantbuffer.View = XMMatrixTranspose(view);
 	constantbuffer.Projection = XMMatrixTranspose(g_Projection);

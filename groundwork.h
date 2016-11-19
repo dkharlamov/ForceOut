@@ -696,6 +696,48 @@ public:
 		ImmediateContext->IASetInputLayout(old_VertexLayout);
 
 	}
+	bool check_wall_vertex(Ray B, XMFLOAT3 *I)
+	{
+		for (int i = 0; i < (walls.size() * 12); i++)
+		{
+			XMFLOAT3 a = pvertices[i + 0].Pos;
+			XMFLOAT3 b = pvertices[i + 1].Pos;
+			XMFLOAT3 c = pvertices[i + 2].Pos;
+
+			XMFLOAT3 diff;
+			diff.x = B.P0.x - a.x;
+			diff.y = B.P0.y - a.y;
+			diff.z = B.P0.z - a.z;
+
+			float length = sqrt(pow(diff.x, 2) + pow(diff.z, 2));
+
+			int res;
+			if (length < 8)
+			{
+			res = D3D_intersect_RayTriangle(B, a, b, c, I);
+			if (res == 1)
+				return true; 
+			}
+
+			XMFLOAT3 a2 = pvertices[i + 3].Pos;
+			XMFLOAT3 b2 = pvertices[i + 4].Pos;
+			XMFLOAT3 c2 = pvertices[i + 5].Pos;
+			
+			diff.x = B.P0.x - a.x;
+			diff.y = B.P0.y - a.y;
+			diff.z = B.P0.z - a.z;
+
+			 length = sqrt(pow(diff.x, 2) + pow(diff.z, 2));
+
+			if (length < 8)
+			{
+				res = D3D_intersect_RayTriangle(B, a2, b2, c2, I);
+				if (res == 1)
+					return true;
+			}
+		}
+		return false;
+	}
 	bool check_col(XMFLOAT3 pos)
 	{
 		int x_offset = 50;
@@ -774,7 +816,8 @@ public:
 		pvertices = new SimpleVertexLVL[12 * walls.size()];
 		SimpleVertexLVL ver[100];
 		XMMATRIX S = XMMatrixScaling(2, 2, 2);
-
+		int originalVert = 12;
+		int expVert = 6;
 		int oo = 0;
 		for (int ii = 0; ii < walls.size(); ii++)
 		{

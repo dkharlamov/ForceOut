@@ -84,6 +84,16 @@ float4 PSlevel(PS_INPUT input) : SV_Target
 {
 	float4 color = tx.Sample(samLinear, input.Tex.xy);
 	float depth = saturate(input.Pos.z / input.Pos.w);
+	float4 fogColor = float4(0.3, 0.01, 0.0, 1.0);
+
+	float fogFactor = depth * 3;
+
+	float4 colorf = (pow(fogFactor, 1) * color + saturate(1.00 - fogFactor/6) * fogColor);
+
+	//if (depth > 0.02f)
+	//	colorf = color;
+
+	color.rgb = colorf.rgb;
 	return color;
 }
 float4 PS( PS_INPUT input) : SV_Target
