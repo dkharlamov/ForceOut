@@ -237,7 +237,7 @@ HRESULT InitDevice()
 		bullets.push_back(bull);
 	}
 
-	cam.position.z = -6;
+	cam.position.z = -12;
 	cam.position.x = -1;
 
     RECT rc;
@@ -1065,8 +1065,8 @@ UINT offset = 0;
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sky, &stride, &offset);
     g_pImmediateContext->PSSetSamplers( 0, 1, &g_pSamplerLinear );
 
-	//g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
-    //g_pImmediateContext->Draw( 36, 0 );
+	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+    g_pImmediateContext->Draw( 36, 0 );
 
 	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
 

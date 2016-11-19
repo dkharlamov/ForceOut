@@ -558,7 +558,7 @@ class wall
 #define MAXTEXTURE 30
 #define TEXPARTS 3
 XMFLOAT2 get_level_tex_coords(int pic, XMFLOAT2 coords);
-//HRESULT CompileShaderFromFile(WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3DBlob** ppBlobOut);
+HRESULT CompileShaderFromFile(WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3DBlob** ppBlobOut);
 
 class level
 {
@@ -700,8 +700,10 @@ public:
 	{
 		int x_offset = 50;
 		float x, z;
-		x = (pos.x / FULLWALL) + x_offset + 1.25f;
-		z = (pos.z / FULLWALL) +1.25f;
+		pos.x /= 2;
+		pos.z /= 2;
+		x = (pos.x / FULLWALL) +x_offset+0.5;
+		z = (pos.z / FULLWALL)+0.5f;
 		BYTE red = leveldata.get_pixel(x, z, 2);
 		if (red > 10)
 			return false;
