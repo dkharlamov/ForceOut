@@ -375,8 +375,12 @@
     <FxCompile Include="explosion_shader.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="Font_FX.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Font.cpp" />
     <ClCompile Include="homework 4.cpp" />
     <ClCompile Include="load3ds.cpp" />
     <ClCompile Include="XMF3.cpp" />
@@ -385,6 +389,7 @@
     <None Include="shader.fx" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Font.h" />
     <ClInclude Include="groundwork.h" />
     <CLInclude Include="resource.h" />
     <ResourceCompile Include="homework 8.rc" />

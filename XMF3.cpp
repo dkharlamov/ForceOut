@@ -89,7 +89,7 @@ int D3D_intersect_RayTriangle(Ray R, XMFLOAT3 A, XMFLOAT3 B, XMFLOAT3 C, XMFLOAT
 
 	a = -Vec3Dot(n, w0);
 	b = Vec3Dot(n, dir);
-	if (fabs(b) < 0.000001)
+	if (fabs(b) < 0.00001)
 	{     // ray is parallel to triangle plane
 		if (a == 0)                // ray lies in triangle plane
 			return 2;

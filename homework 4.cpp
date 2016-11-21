@@ -6,6 +6,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 //--------------------------------------------------------------------------------------
 #include "groundwork.h"
+#include "Font.h" 
 
 
 //--------------------------------------------------------------------------------------
@@ -56,6 +57,7 @@ int									bomb_vertex_anz = 0;
 int									law_vertex_anz = 0;
 
 explosion_handler					explosionhandler;
+Font								font;
 
 //states for turning off and on the depth buffer
 ID3D11DepthStencilState				*ds_on, *ds_off;
@@ -71,6 +73,8 @@ ID3D11ShaderResourceView*			g_pGunTex = NULL;
 ID3D11ShaderResourceView*			g_pBulletTex = NULL;
 ID3D11ShaderResourceView*			g_pBombTex = NULL;
 ID3D11ShaderResourceView*			g_pLawTex = NULL;
+
+ID3D11RasterizerState				*rs_CW, *rs_CCW, *rs_NO, *rs_Wire;
 
 ID3D11SamplerState*                 g_pSamplerLinear = NULL;
 XMMATRIX                            g_World;
@@ -551,6 +555,7 @@ HRESULT InitDevice()
     if( FAILED( hr ) )
         return hr;
     
+	font.init(g_pd3dDevice, g_pImmediateContext, font.defaultFontMapDesc);
 
     // Load the Texture
     hr = D3DX11CreateShaderResourceViewFromFile( g_pd3dDevice, L"v.jpg", NULL, NULL, &g_pTextureRV, NULL );
@@ -643,13 +648,33 @@ HRESULT InitDevice()
 	g_pd3dDevice->CreateDepthStencilState(&DS_ON, &ds_on);
 	g_pd3dDevice->CreateDepthStencilState(&DS_OFF, &ds_off);
 
-	level1.init("level.bmp");
+	level1.init("testLevel.bmp");
 	//level1.init_texture(g_pd3dDevice, L"wall1.jpg");
 	//level1.init_texture(g_pd3dDevice, L"wall2.jpg");
 	//level1.init_texture(g_pd3dDevice, L"floor.jpg");
 	//level1.init_texture(g_pd3dDevice, L"ceiling.jpg");
 	level1.init_texture(g_pd3dDevice, L"level.jpg");
 	level1.make_big_level_object(g_pd3dDevice, &g_View, &g_Projection);
+
+	D3D11_RASTERIZER_DESC			RS_CW, RS_Wire;
+
+	RS_CW.AntialiasedLineEnable = FALSE;
+	RS_CW.CullMode = D3D11_CULL_BACK;
+	RS_CW.DepthBias = 0;
+	RS_CW.DepthBiasClamp = 0.0f;
+	RS_CW.DepthClipEnable = true;
+	RS_CW.FillMode = D3D11_FILL_SOLID;
+	RS_CW.FrontCounterClockwise = false;
+	RS_CW.MultisampleEnable = FALSE;
+	RS_CW.ScissorEnable = false;
+	RS_CW.SlopeScaledDepthBias = 0.0f;
+
+	RS_Wire = RS_CW;
+	RS_Wire.CullMode = D3D11_CULL_NONE;
+	RS_Wire.FillMode = D3D11_FILL_WIREFRAME;
+	g_pd3dDevice->CreateRasterizerState(&RS_Wire, &rs_Wire);
+	g_pd3dDevice->CreateRasterizerState(&RS_CW, &rs_CW);
+	
 	
     return S_OK;
 }
@@ -683,6 +708,8 @@ void CleanupDevice()
 XMVECTOR *det = new XMVECTOR;
 XMFLOAT3 *SPHP = new XMFLOAT3;
 bool COLL = false;
+XMFLOAT3 ffwd;
+	Ray fwd;
 void OnLBD(HWND hwnd, BOOL fDoubleClick, int x, int y, UINT keyFlags)
 	{
 	static int clip = 0;
@@ -695,8 +722,7 @@ void OnLBD(HWND hwnd, BOOL fDoubleClick, int x, int y, UINT keyFlags)
 	R = XMMatrixInverse(det, R);
 
 	shootdirection = R * shootdirection;
-
-	Ray fwd;
+	ffwd = shootdirection;
 
 	fwd.P0 = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z);
 	fwd.P1 = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z) + shootdirection;
@@ -793,7 +819,21 @@ void mShowCursor() 	//shows it again
 		plane = ShowCursor(TRUE);
 }
 
+void sphere_out()
+{
+	XMFLOAT3 shootdirection = XMFLOAT3(0, 0, 1);
+	XMMATRIX R = cam.get_matrix(&g_View);
 
+	R._41 = R._42 = R._43 = 0.0f;
+	R = XMMatrixInverse(det, R);
+
+	shootdirection = R * shootdirection;
+	ffwd = shootdirection;
+
+	fwd.P0 = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z);
+	fwd.P1 = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z) + shootdirection;
+	COLL = level1.check_wall_vertex(fwd, SPHP);
+}
 
 BOOL OnCreate(HWND hwnd, CREATESTRUCT FAR* lpCreateStruct)
 	{
@@ -825,6 +865,9 @@ void OnKeyUp(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
 				break;
 			case 16: shiftDown = false;//escape
 				break;
+			case 76: 
+				sphere_out();
+				break;
 			case 83:cam.s = 0; //s
 			default:break;
 
@@ -832,6 +875,7 @@ void OnKeyUp(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
 
 	}
 
+bool show_console = false;
 void OnKeyDown(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
 	{
 	int x = 0;
@@ -850,6 +894,37 @@ void OnKeyDown(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
 				break;
 			case 16: shiftDown = true;//escape
 				break;
+			case 84://t
+			{
+				static int laststate = 0;
+				if (laststate == 0)
+				{
+					g_pImmediateContext->RSSetState(rs_Wire);
+					laststate = 1;
+				}
+				else
+				{
+					g_pImmediateContext->RSSetState(rs_CW);
+					laststate = 0;
+				}
+
+			}
+			case 192://~
+			{
+				static int laststate = 0;
+				if (laststate == 0)
+				{
+					show_console = true;
+					laststate = 1;
+				}
+				else
+				{
+					show_console = false;
+					laststate = 0;
+				}
+
+			}
+			break;
 			case 27: PostQuitMessage(0);//escape
 				break;
 		}
@@ -981,6 +1056,7 @@ void animateEnemies(TIME t)
 }
 
 
+
 //--------------------------------------------------------------------------------------
 // Render a frame
 //--------------------------------------------------------------------------------------
@@ -1041,8 +1117,9 @@ UINT offset = 0;
     // Clear the depth buffer to 1.0 (max depth)
     g_pImmediateContext->ClearDepthStencilView( g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0 );
 
-
-	
+	static TIME gameTime = 0.0f;
+	gameTime += elapsed;
+	float sway = 0.0f;
 	if (dead)
 	{
 		constantbuffer.d = 1;
@@ -1050,9 +1127,21 @@ UINT offset = 0;
 	else
 	{
 		if (shiftDown)
-			cam.animation(elapsed, 0.00009f, &level1);
+		{
+			cam.animation(elapsed, 0.00002f, &level1);
+			if(cam.w || cam.s || cam.d || cam.a)
+				sway = sin(gameTime / 100000.0) * 0.01;
+			else
+				sway = sin(gameTime / 600000.0) * 0.005;
+		}
 		else
+		{
 			cam.animation(elapsed, 0.000009f, &level1);
+			if (cam.w || cam.s || cam.d || cam.a)
+				sway = sin(gameTime / 300000.0) * 0.01;
+			else
+				sway = sin(gameTime / 600000.0) * 0.005;
+		}
 	}
 
 	XMMATRIX view = cam.get_matrix(&g_View);
@@ -1061,7 +1150,7 @@ UINT offset = 0;
 	XMMATRIX T = XMMatrixTranslation(-cam.position.x, -cam.position.y, -cam.position.z);
 
     // Update skybox constant buffer
-	constantbuffer.World	=	XMMatrixTranspose(T);
+	constantbuffer.World	=	XMMatrixTranspose(XMMatrixScaling(10, 10, 10) * T);
 	constantbuffer.View		=	XMMatrixTranspose(view);
 	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
     g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0 );
@@ -1167,7 +1256,7 @@ UINT offset = 0;
 	//Draw gun
 	if (!dead)
 	{
-	XMMATRIX GT = XMMatrixTranslation(0.2f , -3, 9);
+	XMMATRIX GT = XMMatrixTranslation(0.2f, -3, 9);
 	constantbuffer.World = XMMatrixTranspose(GT);
 	constantbuffer.View = XMMatrixTranspose(view);
 	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
@@ -1246,7 +1335,7 @@ UINT offset = 0;
 
 	M = XMMatrixIdentity();
 	
-	T = XMMatrixTranslation(0.1f, -0.1f, -0.2f);
+	T = XMMatrixTranslation(0.1f + (sway * 0.5), -0.1f + sway, -0.2f);
 	M = XMMatrixScaling(0.01, 0.01, 0.01) * XMMatrixRotationX(XM_PIDIV2) * XMMatrixRotationZ(XM_PI) * XMMatrixRotationY(XM_PI) * T;
 	constantbuffer.World = XMMatrixTranspose(M);
 	constantbuffer.View = XMMatrixTranspose(view);
@@ -1278,6 +1367,34 @@ UINT offset = 0;
 	if(flag == 0)
 		explosionhandler.new_explosion(XMFLOAT3(0, 0, 10), XMFLOAT3(1,1,1), 0, 4.0);
 	flag = 1;
+
+	
+	if (show_console)
+	{
+	font.setColor(XMFLOAT3(0,1,0));
+	font.setPosition(XMFLOAT3(-0.95, 0.95, 0));
+	font << "S: " + to_string(SPHP->x) + " " + to_string(SPHP->y) + " " + to_string(SPHP->z);
+	font.setPosition(XMFLOAT3(-0.95,0.85,0));
+	font << "C: " + to_string(-cam.position.x) + " " + to_string(-cam.position.y) + " " + to_string(-cam.position.z); 
+	font.setPosition(XMFLOAT3(-0.95, 0.75, 0));
+
+	XMFLOAT3 diff;
+	diff.x = SPHP->x - (-cam.position.x);
+	diff.y = SPHP->y - (-cam.position.y);
+	diff.z = SPHP->z - (-cam.position.z);
+	
+	font << "D: " + to_string(Vec3Length(diff));
+
+	font.setPosition(XMFLOAT3(-0.95, 0.65, 0));
+	font << "F: " + to_string(ffwd.x) + " " + to_string(ffwd.y) + " " + to_string(ffwd.z);
+	
+	font.setPosition(XMFLOAT3(-0.95, 0.55, 0));
+	font << "RO: " + to_string(fwd.P0.x) + " " + to_string(fwd.P0.y) + " " + to_string(fwd.P0.z);
+	font.setPosition(XMFLOAT3(-0.95, 0.45, 0));
+	font << "RF: " + to_string(fwd.P1.x) + " " + to_string(fwd.P1.y) + " " + to_string(fwd.P1.z);
+	}
+	
+
     //
     // Present our back buffer to our front buffer
     //

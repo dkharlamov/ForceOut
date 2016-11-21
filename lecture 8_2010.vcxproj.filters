@@ -17,12 +17,14 @@
     <ClCompile Include="homework 4.cpp" />
     <ClCompile Include="XMF3.cpp" />
     <ClCompile Include="load3ds.cpp" />
+    <ClCompile Include="Font.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CLInclude Include="resource.h">
       <Filter>Resource Files</Filter>
     </CLInclude>
     <ClInclude Include="groundwork.h" />
+    <ClInclude Include="Font.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader.fx">
@@ -36,6 +38,9 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="explosion_shader.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Font_FX.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

@@ -698,7 +698,9 @@ public:
 	}
 	bool check_wall_vertex(Ray B, XMFLOAT3 *I)
 	{
-		for (int i = 0; i < (walls.size() * 12); i++)
+		vector<XMFLOAT3> collisions;
+		XMFLOAT3 *solutions = new XMFLOAT3;
+		for (int i = 0; i < (walls.size() * 12); i += 6)
 		{
 			XMFLOAT3 a = pvertices[i + 0].Pos;
 			XMFLOAT3 b = pvertices[i + 1].Pos;
@@ -714,30 +716,63 @@ public:
 			int res;
 			if (length < 8)
 			{
-			res = D3D_intersect_RayTriangle(B, a, b, c, I);
-			if (res == 1)
-				return true; 
+				res = D3D_intersect_RayTriangle(B, a, b, c, solutions);
+				if (res == 1)
+					collisions.push_back(*solutions);
 			}
 
 			XMFLOAT3 a2 = pvertices[i + 3].Pos;
 			XMFLOAT3 b2 = pvertices[i + 4].Pos;
 			XMFLOAT3 c2 = pvertices[i + 5].Pos;
-			
+
 			diff.x = B.P0.x - a.x;
 			diff.y = B.P0.y - a.y;
 			diff.z = B.P0.z - a.z;
 
-			 length = sqrt(pow(diff.x, 2) + pow(diff.z, 2));
+			length = sqrt(pow(diff.x, 2) + pow(diff.z, 2));
 
 			if (length < 8)
 			{
-				res = D3D_intersect_RayTriangle(B, a2, b2, c2, I);
+				res = D3D_intersect_RayTriangle(B, a2, b2, c2, solutions);
 				if (res == 1)
-					return true;
+					collisions.push_back(*solutions);
 			}
+		}
+		if (collisions.size() > 0)
+		{
+			float closest = 99999999999.999;
+			for (int i = 0; i < collisions.size(); i++)
+			{
+
+				XMFLOAT3 camfwd;
+				camfwd.x = B.P1.x - B.P0.x;
+				camfwd.y = B.P1.y - B.P0.y;
+				camfwd.z = B.P1.z - B.P0.z;
+
+
+				XMFLOAT3 diff;
+				diff.x = B.P0.x - collisions[i].x;
+				diff.y = B.P0.y - collisions[i].y;
+				diff.z = B.P0.z - collisions[i].z;
+
+				float len = Vec3Length(diff);
+				
+				float dot = Vec3Dot(Vec3Normalize(diff), Vec3Normalize(camfwd));
+
+
+				if (closest > len && dot < 0)
+				{
+					closest = len;
+					I->x = collisions[i].x;
+					I->y = collisions[i].y;
+					I->z = collisions[i].z;
+				}
+			}
+			return true;
 		}
 		return false;
 	}
+
 	bool check_col(XMFLOAT3 pos)
 	{
 		int x_offset = 50;
