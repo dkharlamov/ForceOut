@@ -757,6 +757,7 @@ public:
 
 				float len = Vec3Length(diff);
 				
+
 				float dot = Vec3Dot(Vec3Normalize(diff), Vec3Normalize(camfwd));
 
 

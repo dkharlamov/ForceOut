@@ -46,15 +46,18 @@ ID3D11DepthStencilView*             g_pDepthStencilView = NULL;
 ID3D11VertexShader*                 g_pVertexShader = NULL;
 ID3D11VertexShader*                 g_pVertexShaderHUD = NULL;
 ID3D11PixelShader*                  g_pPixelShader = NULL;
+ID3D11PixelShader*                  g_pSphereShader = NULL;
 ID3D11InputLayout*                  g_pVertexLayout = NULL;
 ID3D11Buffer*                       g_pVertexBuffer = NULL;
 ID3D11Buffer*                       g_pVertexBuffer_sky = NULL;
 ID3D11Buffer*                       g_pVertexBuffer_sphere = NULL;
 ID3D11Buffer*                       g_pVertexBuffer_bomb = NULL;
 ID3D11Buffer*                       g_pVertexBuffer_law = NULL;
+ID3D11Buffer*                       g_pVertexBuffer_hammer = NULL;
 int									model_vertex_anz = 0; 
 int									bomb_vertex_anz = 0;
 int									law_vertex_anz = 0;
+int									hammer_vertex_anz = 0;
 
 explosion_handler					explosionhandler;
 Font								font;
@@ -73,6 +76,8 @@ ID3D11ShaderResourceView*			g_pGunTex = NULL;
 ID3D11ShaderResourceView*			g_pBulletTex = NULL;
 ID3D11ShaderResourceView*			g_pBombTex = NULL;
 ID3D11ShaderResourceView*			g_pLawTex = NULL;
+ID3D11ShaderResourceView*			g_pHammerTex = NULL;
+ID3D11ShaderResourceView*			g_pDestructTex = NULL;
 
 ID3D11RasterizerState				*rs_CW, *rs_CCW, *rs_NO, *rs_Wire;
 
@@ -85,6 +90,7 @@ CXBOXController *gamepad = new CXBOXController(1);
 
 camera								cam;
 level								level1;
+vector<XMFLOAT3>					sphere_positions;
 //--------------------------------------------------------------------------------------
 // Forward declarations
 //--------------------------------------------------------------------------------------
@@ -406,7 +412,8 @@ HRESULT InitDevice()
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
     UINT numElements = ARRAYSIZE( layout );
 
     // Create the input layout
@@ -435,6 +442,19 @@ HRESULT InitDevice()
     if( FAILED( hr ) )
         return hr;
 
+	hr = CompileShaderFromFile(L"shader.fx", "PS_SPHERE", "ps_4_0", &pPSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(NULL,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the pixel shader
+	hr = g_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, &g_pSphereShader);
+	pPSBlob->Release();
+	if (FAILED(hr))
+		return hr;
 
 	//create skybox vertex buffer
 	SimpleVertex vertices_skybox[] =
@@ -540,6 +560,7 @@ HRESULT InitDevice()
 	//Load3DS("sphere.3ds", g_pd3dDevice, &g_pVertexBuffer_sphere, &model_vertex_anz);
 	LoadCatmullClark(L"ccsphere.cmp", g_pd3dDevice, &g_pVertexBuffer_sphere, &model_vertex_anz);
 	LoadOBJ("Bomb.obj", g_pd3dDevice, &g_pVertexBuffer_bomb, &bomb_vertex_anz);
+	LoadOBJ("hammer.obj", g_pd3dDevice, &g_pVertexBuffer_hammer, &hammer_vertex_anz);
 	Load3DS("RPG.3DS", g_pd3dDevice, &g_pVertexBuffer_law, &law_vertex_anz);
 
 
@@ -583,6 +604,14 @@ HRESULT InitDevice()
 		return hr;
 
 	hr = D3DX11CreateShaderResourceViewFromFile(g_pd3dDevice, L"Tex_0006_1.jpg", NULL, NULL, &g_pLawTex, NULL);
+	if (FAILED(hr))
+		return hr;
+
+	hr = D3DX11CreateShaderResourceViewFromFile(g_pd3dDevice, L"hammert.png", NULL, NULL, &g_pHammerTex, NULL);
+	if (FAILED(hr))
+		return hr;
+
+	hr = D3DX11CreateShaderResourceViewFromFile(g_pd3dDevice, L"destruction.png", NULL, NULL, &g_pDestructTex, NULL);
 	if (FAILED(hr))
 		return hr;
 
@@ -728,6 +757,8 @@ void OnLBD(HWND hwnd, BOOL fDoubleClick, int x, int y, UINT keyFlags)
 	fwd.P1 = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z) + shootdirection;
 	COLL = level1.check_wall_vertex(fwd, SPHP);
 	
+	if (COLL)
+		sphere_positions.push_back(*SPHP);
 
 	bullets[clip].impulse = shootdirection;
 	bullets[clip].projectile.position = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z);
@@ -833,6 +864,9 @@ void sphere_out()
 	fwd.P0 = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z);
 	fwd.P1 = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z) + shootdirection;
 	COLL = level1.check_wall_vertex(fwd, SPHP);
+
+	if (COLL)
+		sphere_positions.push_back(*SPHP);
 }
 
 BOOL OnCreate(HWND hwnd, CREATESTRUCT FAR* lpCreateStruct)
@@ -923,6 +957,11 @@ void OnKeyDown(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
 					laststate = 0;
 				}
 
+			}
+			break;
+			case 67://~
+			{
+				sphere_positions;
 			}
 			break;
 			case 27: PostQuitMessage(0);//escape
@@ -1062,32 +1101,44 @@ void animateEnemies(TIME t)
 //--------------------------------------------------------------------------------------
 void Render()
 {
-UINT stride = sizeof(SimpleVertex);
-UINT offset = 0;
+	UINT stride = sizeof(SimpleVertex);
+	UINT offset = 0;
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 
-    // Update our time
-    static float t = 0.0f;
+	// Update our time
+	static float t = 0.0f;
 	t += 0.001;
 	static StopWatchMicro_ timer;
 	TIME elapsed = timer.elapse_micro();
 	timer.start();
 
-    ConstantBuffer constantbuffer;
+	ConstantBuffer constantbuffer;
+	constantbuffer.w_pos = XMFLOAT3(0,0,0);
 
 	if (gamepad->IsConnected())
 	{
-		if (gamepad->GetState().Gamepad.wButtons & XINPUT_GAMEPAD_Y)
+		
+		if (gamepad->GetState().Gamepad.wButtons & XINPUT_GAMEPAD_A)
+		{
+			sphere_out();
+		}
+		if (gamepad->GetState().Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP)
 			cam.w = 1;
 		else
 			cam.w = 0;
-		if (gamepad->GetState().Gamepad.wButtons & XINPUT_GAMEPAD_A)
-		{
-
+		if (gamepad->GetState().Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN)
 			cam.s = 1;
-		}
 		else
 			cam.s = 0;
+
+		if (gamepad->GetState().Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_LEFT)
+			cam.a = 1;
+		else
+			cam.a = 0;
+		if (gamepad->GetState().Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT)
+			cam.d = 1;
+		else
+			cam.d = 0;
 
 	}
 	SHORT lx = gamepad->GetState().Gamepad.sThumbLX;
@@ -1096,30 +1147,49 @@ UINT offset = 0;
 	SHORT rx = gamepad->GetState().Gamepad.sThumbRX;
 	SHORT ry = gamepad->GetState().Gamepad.sThumbRY;
 
+	SHORT trig = gamepad->GetState().Gamepad.bRightTrigger;
+
+	static bool t_state = false;
+	if (abs(trig) > 80)
+		t_state = true;
+
+	if (t_state == true && abs(trig) < 10)
+	{
+		sphere_out();
+		t_state = false;
+	}
+
 	if (abs(ry) > 3000)
 	{
 		float angle_x = (float)ry / 32000.0;
-		angle_x *= 0.05;
+		angle_x *= 0.005;
 		cam.rotation.x += angle_x;
 	}
 	if (abs(rx) > 3000)
 	{
 		float angle_y = (float)rx / 32000.0;
-		angle_y *= 0.05;
+		angle_y *= 0.009;
 		cam.rotation.y -= angle_y;
 	}
 
+	
 
-    // Clear the back buffer
-    float ClearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f }; // red, green, blue, alpha
-    g_pImmediateContext->ClearRenderTargetView( g_pRenderTargetView, ClearColor );
 
-    // Clear the depth buffer to 1.0 (max depth)
-    g_pImmediateContext->ClearDepthStencilView( g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0 );
+	// Clear the back buffer
+	float ClearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f }; // red, green, blue, alpha
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, ClearColor);
+
+	// Clear the depth buffer to 1.0 (max depth)
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 	static TIME gameTime = 0.0f;
 	gameTime += elapsed;
 	float sway = 0.0f;
+
+	RECT rc;
+	GetClientRect(g_hWnd, &rc);
+	UINT width = rc.right - rc.left;
+	UINT height = rc.bottom - rc.top;
 	if (dead)
 	{
 		constantbuffer.d = 1;
@@ -1129,7 +1199,7 @@ UINT offset = 0;
 		if (shiftDown)
 		{
 			cam.animation(elapsed, 0.00002f, &level1);
-			if(cam.w || cam.s || cam.d || cam.a)
+			if (cam.w || cam.s || cam.d || cam.a)
 				sway = sin(gameTime / 100000.0) * 0.01;
 			else
 				sway = sin(gameTime / 600000.0) * 0.005;
@@ -1149,22 +1219,22 @@ UINT offset = 0;
 
 	XMMATRIX T = XMMatrixTranslation(-cam.position.x, -cam.position.y, -cam.position.z);
 
-    // Update skybox constant buffer
-	constantbuffer.World	=	XMMatrixTranspose(XMMatrixScaling(10, 10, 10) * T);
-	constantbuffer.View		=	XMMatrixTranspose(view);
+	// Update skybox constant buffer
+	constantbuffer.World = XMMatrixTranspose(XMMatrixScaling(10, 10, 10) * T);
+	constantbuffer.View = XMMatrixTranspose(view);
 	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
-    g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0 );
-    // Render skybox
-    g_pImmediateContext->VSSetShader( g_pVertexShader, NULL, 0 );
-	g_pImmediateContext->PSSetShader(g_pPixelShader, NULL, 0);	
-	g_pImmediateContext->VSSetConstantBuffers( 0, 1, &g_pCBuffer);   
-    g_pImmediateContext->PSSetConstantBuffers( 0, 1, &g_pCBuffer);
-	g_pImmediateContext->PSSetShaderResources( 0, 1, &g_pTextureRV );
+	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+	// Render skybox
+	g_pImmediateContext->VSSetShader(g_pVertexShader, NULL, 0);
+	g_pImmediateContext->PSSetShader(g_pPixelShader, NULL, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pTextureRV);
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sky, &stride, &offset);
-    g_pImmediateContext->PSSetSamplers( 0, 1, &g_pSamplerLinear );
+	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
 
 	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
-    g_pImmediateContext->Draw( 36, 0 );
+	g_pImmediateContext->Draw(36, 0);
 
 	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
 
@@ -1177,18 +1247,18 @@ UINT offset = 0;
 	{
 		if (!enemies[i].dead)
 		{
-		for (int j = 0; j < 6; j++)
-		{
-			XMFLOAT3 toVector;
-			toVector.x = enemies[i].position.x - bullets[j].projectile.position.x;
-			toVector.z = enemies[i].position.z - bullets[j].projectile.position.z;
+			for (int j = 0; j < 6; j++)
+			{
+				XMFLOAT3 toVector;
+				toVector.x = enemies[i].position.x - bullets[j].projectile.position.x;
+				toVector.z = enemies[i].position.z - bullets[j].projectile.position.z;
 
-			float length = sqrt(pow(toVector.x, 2) + pow(toVector.z, 2));
+				float length = sqrt(pow(toVector.x, 2) + pow(toVector.z, 2));
 
-			if (length < 1.0)
-				enemies[i].dead = true;
-				
-		}
+				if (length < 1.0)
+					enemies[i].dead = true;
+
+			}
 
 			animateEnemies(elapsed);
 
@@ -1199,15 +1269,15 @@ UINT offset = 0;
 			float length = sqrt(pow(toVector.x, 2) + pow(toVector.z, 2));
 
 			if (length < 1.0)
-		//		dead = true;
+				//		dead = true;
 
-			constantbuffer.World = XMMatrixTranspose(enemies[i].get_matrix(view));
+				constantbuffer.World = XMMatrixTranspose(enemies[i].get_matrix(view));
 			constantbuffer.View = XMMatrixTranspose(view);
 			constantbuffer.Projection = XMMatrixTranspose(g_Projection);
 			g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
 			g_pImmediateContext->PSSetShaderResources(0, 1, &g_pEnemyTex);
 
-		//	g_pImmediateContext->Draw(12, 0);
+			//	g_pImmediateContext->Draw(12, 0);
 		}
 	}
 
@@ -1242,32 +1312,32 @@ UINT offset = 0;
 
 		if (abs(bullets[i].projectile.position.z) <= 80 || abs(bullets[i].projectile.position.x) <= 80)
 		{
-		constantbuffer.World = XMMatrixTranspose(S * T * bullets[i].projectile.get_matrix(view));
-		constantbuffer.View = XMMatrixTranspose(view);
-		constantbuffer.Projection = XMMatrixTranspose(g_Projection);
-		g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
-		g_pImmediateContext->PSSetShaderResources(0, 1, &g_pBulletTex);
+			constantbuffer.World = XMMatrixTranspose(S * T * bullets[i].projectile.get_matrix(view));
+			constantbuffer.View = XMMatrixTranspose(view);
+			constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+			g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+			g_pImmediateContext->PSSetShaderResources(0, 1, &g_pBulletTex);
 
-		g_pImmediateContext->Draw(12, 0);
+			g_pImmediateContext->Draw(12, 0);
 		}
 	}
 
-	
+
 	//Draw gun
 	if (!dead)
 	{
-	XMMATRIX GT = XMMatrixTranslation(0.2f, -3, 9);
-	constantbuffer.World = XMMatrixTranspose(GT);
-	constantbuffer.View = XMMatrixTranspose(view);
-	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
-	constantbuffer.e = 1;
-	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
-	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGunTex);
-	
-	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
-	g_pImmediateContext->VSSetShader(g_pVertexShaderHUD, NULL, 0);
-	//g_pImmediateContext->Draw(12, 0);
-	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
+		XMMATRIX GT = XMMatrixTranslation(0.2f, -3, 9);
+		constantbuffer.World = XMMatrixTranspose(GT);
+		constantbuffer.View = XMMatrixTranspose(view);
+		constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+		constantbuffer.e = 1;
+		g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+		g_pImmediateContext->PSSetShaderResources(0, 1, &g_pGunTex);
+
+		g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+		g_pImmediateContext->VSSetShader(g_pVertexShaderHUD, NULL, 0);
+		//g_pImmediateContext->Draw(12, 0);
+		g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
 	}
 	constantbuffer.e = 0;
 
@@ -1277,23 +1347,26 @@ UINT offset = 0;
 	static int fll = 0;
 	if (fll == 0)
 	{
-		ST = XMMatrixTranslation(-99,-99,-99);
+		ST = XMMatrixTranslation(-99, -99, -99);
 		fll = 1;
 	}
-	if(COLL)
-		ST = XMMatrixTranslation(SPHP->x, SPHP->y,SPHP->z);
+	for (int i = 0; i < sphere_positions.size(); i++) {
+	
+	constantbuffer.w_pos = XMFLOAT3(cam.position.x, cam.position.y, cam.position.z);
+
+	ST = XMMatrixTranslation(sphere_positions[i].x, sphere_positions[i].y, sphere_positions[i].z);
 	M = XMMatrixScaling(0.01f, 0.01f, 0.01f) * ST;
 	constantbuffer.World = XMMatrixTranspose(M);
 	constantbuffer.View = XMMatrixTranspose(view);
 	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
 	constantbuffer.sphere = 1;
-	constantbuffer.sp_pos = XMFLOAT3(0,0,8);
+	constantbuffer.sp_pos = XMFLOAT3(0, 0, 8);
 	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
 	g_pImmediateContext->VSSetShader(g_pVertexShader, NULL, 0);
-	g_pImmediateContext->PSSetShader(g_pPixelShader, NULL, 0);
+	g_pImmediateContext->PSSetShader(g_pSphereShader, NULL, 0);
 	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
-	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pTextureRV);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pDestructTex);
 	g_pImmediateContext->VSSetShaderResources(0, 1, &g_pTextureRV);
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sphere, &stride, &offset);
 	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
@@ -1304,6 +1377,8 @@ UINT offset = 0;
 	//g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
 	g_pImmediateContext->Draw(model_vertex_anz, 0);
 	//g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
+
+	}
 	constantbuffer.sphere = 0;
 
 
@@ -1334,7 +1409,7 @@ UINT offset = 0;
 
 
 	M = XMMatrixIdentity();
-	
+	/*
 	T = XMMatrixTranslation(0.1f + (sway * 0.5), -0.1f + sway, -0.2f);
 	M = XMMatrixScaling(0.01, 0.01, 0.01) * XMMatrixRotationX(XM_PIDIV2) * XMMatrixRotationZ(XM_PI) * XMMatrixRotationY(XM_PI) * T;
 	constantbuffer.World = XMMatrixTranspose(M);
@@ -1356,6 +1431,31 @@ UINT offset = 0;
 	//g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
 	g_pImmediateContext->Draw(law_vertex_anz, 0);
+	*/
+
+	M = XMMatrixIdentity();
+
+	T = XMMatrixTranslation(0.1f + (sway * 0.5), -0.05f + sway, 0.2f);
+	M = XMMatrixScaling(0.001, 0.001, 0.001) * T;
+	constantbuffer.World = XMMatrixTranspose(M);
+	constantbuffer.View = XMMatrixTranspose(view);
+	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+	constantbuffer.sp_pos = XMFLOAT3(0, 0, 8);
+	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+	g_pImmediateContext->VSSetShader(g_pVertexShaderHUD, NULL, 0);
+	g_pImmediateContext->PSSetShader(g_pPixelShader, NULL, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pHammerTex);
+	g_pImmediateContext->VSSetShaderResources(0, 1, &g_pTextureRV);
+	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_hammer, &stride, &offset);
+	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
+
+
+	//g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+	g_pImmediateContext->Draw(hammer_vertex_anz, 0);
 	
 
 	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);

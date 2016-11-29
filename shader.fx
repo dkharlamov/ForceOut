@@ -30,15 +30,31 @@ float3 w_pos;
 //--------------------------------------------------------------------------------------
 struct VS_INPUT
 {
-    float4 Pos : POSITION;
-    float2 Tex : TEXCOORD0;
+	float4 Pos : POSITION;
+	float2 Tex : TEXCOORD0;
+	float3 Norm : NORMAL0;
 };
 
 struct PS_INPUT
 {
-    float4 Pos : SV_POSITION;
-    float2 Tex : TEXCOORD0;
+	float4 Pos : SV_POSITION;
+	float2 Tex : TEXCOORD0;
+	float3 WorldPos : TEXCOORD1;
+	float4 Norm : Normal0;
 };
+
+struct VS_INPUT_L
+{
+	float4 Pos : POSITION;
+	float2 Tex : TEXCOORD0;
+};
+
+struct PS_INPUT_L
+{
+	float4 Pos : SV_POSITION;
+	float2 Tex : TEXCOORD0;
+};
+
 
 
 //--------------------------------------------------------------------------------------
@@ -47,16 +63,21 @@ struct PS_INPUT
 PS_INPUT VS( VS_INPUT input )
 {
     PS_INPUT output = (PS_INPUT)0;
-    output.Pos = mul( input.Pos, World );
-    output.Pos = mul( output.Pos, View );
-    output.Pos = mul( output.Pos, Projection );
-    output.Tex = input.Tex;
+	float4 pos = input.Pos;
+	pos = mul(pos, World);
+	output.Pos = mul(pos, View);
+	output.Pos = mul(output.Pos, Projection);
+	output.Tex = input.Tex;
+	//lighing:
+	//also turn the light normals in case of a rotation:
+	output.Norm = normalize(mul(input.Norm, World));
+	output.WorldPos = pos;
     
     return output;
 }
-PS_INPUT VSlevel(VS_INPUT input)
+PS_INPUT_L VSlevel(VS_INPUT_L input)
 {
-	VS_INPUT output = (PS_INPUT)0;
+	VS_INPUT_L output = (PS_INPUT_L)0;
 	output.Pos = mul(input.Pos, World);
 	output.Pos = mul(output.Pos, View);
 	output.Pos = mul(output.Pos, Projection);
@@ -80,7 +101,7 @@ PS_INPUT VSHUD(VS_INPUT input)
 // Pixel Shader
 //--------------------------------------------------------------------------------------
 
-float4 PSlevel(PS_INPUT input) : SV_Target
+float4 PSlevel(PS_INPUT_L input) : SV_Target
 {
 	float4 color = tx.Sample(samLinear, input.Tex.xy);
 	float depth = saturate(input.Pos.z / input.Pos.w);
@@ -94,7 +115,7 @@ float4 PSlevel(PS_INPUT input) : SV_Target
 	//	colorf = color;
 
 	color.rgb = colorf.rgb;
-	return color;
+	return color; //float4(depth, depth, depth, 1);
 }
 float4 PS( PS_INPUT input) : SV_Target
 {
@@ -128,6 +149,24 @@ float4 PS( PS_INPUT input) : SV_Target
 
 
 
-	return color;
+	return color; //float4(depth, depth, depth, 1);;
 }
 
+float4 PS_SPHERE(PS_INPUT input) : SV_Target
+{
+	float4 color = txDiffuse.Sample(samLinear, input.Tex);
+	
+	float depth = saturate(sqrt(input.Pos.z / input.Pos.w));
+
+
+	float3 camPos = float3(View._41, View._42, View._43);
+
+	float3 diff = normalize(input.WorldPos - camPos);
+
+	float te = saturate(dot(input.Norm, -diff));
+
+	if(te < 0.5)
+		color.a = 0;
+
+	return color;
+}
