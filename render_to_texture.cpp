@@ -1,9 +1,9 @@
-#include "render_to_texture.h"
+#include "groundwork.h"
 
-extern int fact;
+
 
 bool RenderTextureClass::Initialize_depth(ID3D11Device* device, HWND hwnd, int width, int height)
-	{
+{
 	if (m_renderTargetTexture) return TRUE;
 
 
@@ -39,9 +39,9 @@ bool RenderTextureClass::Initialize_depth(ID3D11Device* device, HWND hwnd, int w
 	// Create the render target texture.
 	result = device->CreateTexture2D(&texDesc, NULL, &m_renderTargetTexture);
 	if (FAILED(result))
-		{
+	{
 		return false;
-		}
+	}
 
 	// Setup the description of the shader resource view.
 
@@ -54,9 +54,9 @@ bool RenderTextureClass::Initialize_depth(ID3D11Device* device, HWND hwnd, int w
 	// Create the shader resource view.
 	result = device->CreateShaderResourceView(m_renderTargetTexture, &srvDesc, &m_shaderResourceView);
 	if (FAILED(result))
-		{
+	{
 		return false;
-		}
+	}
 	D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
 	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
@@ -64,15 +64,15 @@ bool RenderTextureClass::Initialize_depth(ID3D11Device* device, HWND hwnd, int w
 	dsvDesc.Flags = 0;
 	result = device->CreateDepthStencilView(m_renderTargetTexture, &dsvDesc, &m_DepthStencilView);
 	if (FAILED(result))
-		{
+	{
 		return false;
-		}
+	}
 
 	return true;
-	}
+}
 //------------------------------------------------------------------------
 bool RenderTextureClass::Initialize_3DTex(ID3D11Device* device, int width, int height, int depth, bool uav_, DXGI_FORMAT format, bool mipmaps)
-	{
+{
 	if (m_renderTargetTexture3D) return TRUE;
 
 	HRESULT result;
@@ -102,16 +102,16 @@ bool RenderTextureClass::Initialize_3DTex(ID3D11Device* device, int width, int h
 	texDesc.MiscFlags = NULL;
 	texDesc.Usage = D3D11_USAGE_DEFAULT;
 	if (mipmaps)
-		{
+	{
 		texDesc.MipLevels = 0;
 		texDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
-		}
+	}
 	// Create the render target texture.
 	result = device->CreateTexture3D(&texDesc, NULL, &m_renderTargetTexture3D);
 	if (FAILED(result))		return false;
 
 	if (!uav_)
-		{
+	{
 		// Setup the description of the render target view.
 		renderTargetViewDesc.Format = format;
 		renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE3D;
@@ -120,7 +120,7 @@ bool RenderTextureClass::Initialize_3DTex(ID3D11Device* device, int width, int h
 		// Create the render target view.
 		result = device->CreateRenderTargetView(m_renderTargetTexture, &renderTargetViewDesc, &m_renderTargetView);
 		if (FAILED(result))			return false;
-		}
+	}
 	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
 	// Setup the description of the shader resource view.
 	shaderResourceViewDesc.Format = format;
@@ -137,7 +137,7 @@ bool RenderTextureClass::Initialize_3DTex(ID3D11Device* device, int width, int h
 
 
 	if (uav)
-		{
+	{
 		// create the unordered access view
 		D3D11_UNORDERED_ACCESS_VIEW_DESC descUAV;
 		ZeroMemory(&descUAV, sizeof(descUAV));
@@ -148,32 +148,27 @@ bool RenderTextureClass::Initialize_3DTex(ID3D11Device* device, int width, int h
 		descUAV.Texture3D.WSize = depth;
 		result = device->CreateUnorderedAccessView(m_renderTargetTexture3D, &descUAV, &m_pUAVs);
 		if (FAILED(result))			return false;
-		}
+	}
 
 	return true;
-	}
+}
 //------------------------------------
 bool RenderTextureClass::Initialize(ID3D11Device* device, HWND hwnd, int width, int height, bool uav_, DXGI_FORMAT format, bool mipmaps)
-	{
+{
 	if (m_renderTargetView) return TRUE;
 
 	RECT rc;
 	UINT textureWidth;
 	UINT textureHeight;
 	if (hwnd)
-		{
+	{
 		GetClientRect(hwnd, &rc);
 		textureWidth = rc.right - rc.left;
 		textureHeight = rc.bottom - rc.top;
-		}
+	}
 	if (width >= 0)			textureWidth = width;
 	if (height >= 0)		textureHeight = height;
 
-	if (width == -2)
-		{
-		textureWidth *= fact;
-		textureHeight *= fact;
-		}
 	D3D11_TEXTURE2D_DESC textureDesc;
 	HRESULT result;
 	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
@@ -195,17 +190,17 @@ bool RenderTextureClass::Initialize(ID3D11Device* device, HWND hwnd, int width, 
 	textureDesc.CPUAccessFlags = 0;
 	textureDesc.MiscFlags = 0;
 	if (mipmaps)
-		{
+	{
 		textureDesc.MipLevels = 0;
 		textureDesc.ArraySize = 1;
 		textureDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
-		}
+	}
 	// Create the render target texture.
 	result = device->CreateTexture2D(&textureDesc, NULL, &m_renderTargetTexture);
 	if (FAILED(result))
-		{
+	{
 		return false;
-		}
+	}
 
 	// Setup the description of the render target view.
 	renderTargetViewDesc.Format = textureDesc.Format;
@@ -215,9 +210,9 @@ bool RenderTextureClass::Initialize(ID3D11Device* device, HWND hwnd, int width, 
 	// Create the render target view.
 	result = device->CreateRenderTargetView(m_renderTargetTexture, &renderTargetViewDesc, &m_renderTargetView);
 	if (FAILED(result))
-		{
+	{
 		return false;
-		}
+	}
 
 	// Setup the description of the shader resource view.
 	shaderResourceViewDesc.Format = textureDesc.Format;
@@ -232,13 +227,13 @@ bool RenderTextureClass::Initialize(ID3D11Device* device, HWND hwnd, int width, 
 	// Create the shader resource view.
 	result = device->CreateShaderResourceView(m_renderTargetTexture, &shaderResourceViewDesc, &m_shaderResourceView);
 	if (FAILED(result))
-		{
+	{
 		return false;
-		}
+	}
 
 	uav = uav_;
 	if (uav)
-		{
+	{
 		// create the unordered access view
 		D3D11_UNORDERED_ACCESS_VIEW_DESC descUAV;
 		descUAV.Format = format;
@@ -250,34 +245,34 @@ bool RenderTextureClass::Initialize(ID3D11Device* device, HWND hwnd, int width, 
 		if (FAILED(result))
 			return false;
 
-		}
-	return true;
 	}
+	return true;
+}
 /////////////////////////////////////////////////////////////////////////
 ID3D11ShaderResourceView* RenderTextureClass::GetShaderResourceView()
-	{
+{
 	return m_shaderResourceView;
-	}
+}
 ///////////////////////////////////////////////////////////
 void RenderTextureClass::Shutdown()
-	{
+{
 	if (m_shaderResourceView)
-		{
+	{
 		m_shaderResourceView->Release();
 		m_shaderResourceView = 0;
-		}
+	}
 
 	if (m_renderTargetView)
-		{
+	{
 		m_renderTargetView->Release();
 		m_renderTargetView = 0;
-		}
+	}
 
 	if (m_renderTargetTexture)
-		{
+	{
 		m_renderTargetTexture->Release();
 		m_renderTargetTexture = 0;
-		}
+	}
 	if (m_DepthStencilView)			m_DepthStencilView->Release();
 	if (m_pUAVs)					m_pUAVs->Release();
 	if (m_renderTargetTexture3D)	m_renderTargetTexture3D->Release();
@@ -286,4 +281,4 @@ void RenderTextureClass::Shutdown()
 	m_renderTargetTexture3D = NULL;
 	m_pUAVs = NULL;
 	return;
-	}
+}

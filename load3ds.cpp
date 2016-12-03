@@ -341,7 +341,7 @@ bool LoadCatmullClark(LPCTSTR filename, ID3D11Device* g_pd3dDevice, ID3D11Buffer
 		ReadFile(file, &vertData, sizeof(CatmullVertex), &burn, NULL);
 		SimpleVertex sv;
 		sv.Pos = vertData.pos;
-		//sv.Normal = vertData.normal;
+		sv.Norm = vertData.normal;
 		sv.Tex = vertData.tex;
 		data.push_back(sv);
 	}
