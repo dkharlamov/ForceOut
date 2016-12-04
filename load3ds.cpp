@@ -334,6 +334,7 @@ bool LoadCatmullClark(LPCTSTR filename, ID3D11Device* g_pd3dDevice, ID3D11Buffer
 
 	SetFilePointer(file, 80, NULL, FILE_BEGIN);
 	ReadFile(file, vertex_count, 4, &burn, NULL);
+	float miny, maxy;
 
 	for (int i = 0; i < *vertex_count; ++i)
 	{
@@ -341,6 +342,14 @@ bool LoadCatmullClark(LPCTSTR filename, ID3D11Device* g_pd3dDevice, ID3D11Buffer
 		ReadFile(file, &vertData, sizeof(CatmullVertex), &burn, NULL);
 		SimpleVertex sv;
 		sv.Pos = vertData.pos;
+		if(i==0)
+			miny=maxy= vertData.pos.y;
+		else
+		{
+			miny = min(miny, vertData.pos.y);
+			maxy = max(maxy, vertData.pos.y);
+		}
+
 		sv.Norm = vertData.normal;
 		sv.Tex = vertData.tex;
 		data.push_back(sv);

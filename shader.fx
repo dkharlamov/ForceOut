@@ -34,7 +34,8 @@ struct PS_INPUT
 {
 	float4 Pos : SV_POSITION;
 	float2 Tex : TEXCOORD0;
-	float3 WorldPos : TEXCOORD1;
+	float4 WorldPos : TEXCOORD1;
+	float4 ScreenPos : TEXCOORD2;
 	float4 Norm : Normal0;
 };
 
@@ -67,6 +68,8 @@ PS_INPUT VS( VS_INPUT input )
 	//also turn the light normals in case of a rotation:
 	output.Norm = normalize(mul(input.Norm, World));
 	output.WorldPos = pos;
+	output.ScreenPos = mul(pos, View);
+	output.ScreenPos = mul(output.ScreenPos, Projection);
     
     return output;
 }
@@ -142,29 +145,55 @@ float4 PS_SPHERE(PS_INPUT input) : SV_Target
 	result.a = 1;
 
 	float depth = result.r;
-
 	depth = pow(depth, 512);
-
 	depth = 1 - depth;
 
-	float pix_depth = saturate(sqrt(input.Pos.z / input.Pos.w));
+	float pix_depth = input.ScreenPos.z / input.ScreenPos.w;
+	pix_depth = pow(pix_depth, 512);
+	pix_depth = 1 - pix_depth; //working!
+
+
+
 
 	float3 sp = input.WorldPos;
 	sp.y = 0;
 
-	float3 cam = w_pos;
+
+	float4 worldpos = input.WorldPos;
+	worldpos.y = 0;
+
+
+	float3 cam =  w_pos;
 	cam.y = 0;
 	
 
-	float3 r = normalize((sp - cam));
+	float3 p_cam_dir = normalize((sp - cam));
+
+	float visible = dot(p_cam_dir, normalize(-input.Norm));
+
+
+	float pseudo_diameter = saturate(sin(visible * 1.570796)) * 1.6; //!!!!! at the moment!
+
+	//pseudo_diameter = 1;
+
+	float4 opposide_pos = worldpos + float4(p_cam_dir.xyz*pseudo_diameter,1);
+	opposide_pos = mul(opposide_pos, View);
+	opposide_pos = mul(opposide_pos, Projection);
+	float opposide_pix_depth = opposide_pos.z / opposide_pos.w;
+	opposide_pix_depth = pow(opposide_pix_depth, 512);
+	opposide_pix_depth = 1 - opposide_pix_depth; //working!
 
 	//closer -> 1
 
 	if (pix_depth > depth)
 		color.a = 0;
-	//color.r = depth;
-	//color.g = pix_depth;
-	//color.b = 0;
+		
+
+	if((pix_depth + pseudo_diameter / 10.) < depth)
+		color.a = 0;
+
+	if(visible<=0)
+		color.a = 0;
 
 
 	return color;
@@ -173,7 +202,14 @@ float4 PS_SPHERE(PS_INPUT input) : SV_Target
 
 float4 PS_SPHERE_DEPTH(PS_INPUT input) : SV_Target
 {
-	float pix_depth = saturate(sqrt(input.Pos.z / input.Pos.w));
+	float pix_depth = input.ScreenPos.z/ input.ScreenPos.w;
+
+pix_depth = pow(pix_depth, 512);
+
+pix_depth = 1 - pix_depth; // Inversion to match pixel depth
+
+
+
 
 	return float4(pix_depth, pix_depth, pix_depth, 1.);
 }
@@ -224,6 +260,35 @@ float4 PS_screen(PS_INPUT input) : SV_Target
 	
 
 }
+
+
+float4 PS_screen_AO(PS_INPUT input) : SV_Target
+{
+
+	float4 result = txDiffuse.Sample(samLinear, input.Tex);
+	float4 resultd = txDepth.Sample(samLinear, input.Tex);
+
+
+	resultd.a = 1;
+
+	float depth = resultd.r;
+
+	depth = pow(depth, 2048);
+
+	depth = 1 - depth;
+
+	if (depth > 0.00001)
+	{
+	result.rgb *= depth;
+	}
+
+	result.a = 1;
+
+	return result;
+
+
+}
+
 
 
 float4 PS_screen_depth(PS_INPUT input) : SV_Target
