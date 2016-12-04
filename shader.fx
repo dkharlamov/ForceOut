@@ -17,7 +17,7 @@ cbuffer ConstantBuffer : register( b0 )
 matrix World;
 matrix View;
 matrix Projection;
-float3 w_pos;
+float4 w_pos;
 };
 
 
@@ -187,7 +187,6 @@ float4 PS_SPHERE(PS_INPUT input) : SV_Target
 
 	if (pix_depth > depth)
 		color.a = 0;
-		
 
 	if((pix_depth + pseudo_diameter / 10.) < depth)
 		color.a = 0;

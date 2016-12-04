@@ -748,7 +748,7 @@ HRESULT InitDevice()
     // Create the sample state
     D3D11_SAMPLER_DESC sampDesc;
     ZeroMemory( &sampDesc, sizeof(sampDesc) );
-    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    sampDesc.Filter = D3D11_FILTER_COMPARISON_ANISOTROPIC;
     sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
     sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
     sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -900,9 +900,22 @@ void OnLBD(HWND hwnd, BOOL fDoubleClick, int x, int y, UINT keyFlags)
 	fwd.P0 = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z);
 	fwd.P1 = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z) + shootdirection;
 	COLL = level1.check_wall_vertex(fwd, SPHP);
-	
+
+
+	//TODO: FURTHEST FROM CAM BUT CLOSEST TO THE SPHERE FURTHEST FROM CAM
+	//		CHECK IN ONE DIRECTION (DOT PRODUCT BETWEEN CAM FWD AND SPHERE POS) *IDEA* (!)
 	if (COLL)
+	{
+		for (int i = 0; i < sphere_positions.size(); i++)
+		{
+			float leng = Vec3Length(*SPHP - sphere_positions[i]);
+			if (leng < 1.6f)
+			{
+				*SPHP = *SPHP + Vec3Normalize(ffwd);
+			}
+		}
 		sphere_positions.push_back(*SPHP);
+	}
 
 	bullets[clip].impulse = shootdirection;
 	bullets[clip].projectile.position = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z);
