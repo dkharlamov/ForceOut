@@ -819,6 +819,7 @@ HRESULT InitDevice()
 	g_pd3dDevice->CreateDepthStencilState(&DS_OFF, &ds_off);
 
 	level1.init("testLevel.bmp");
+	//level1.init("level.bmp");
 	//level1.init_texture(g_pd3dDevice, L"wall1.jpg");
 	//level1.init_texture(g_pd3dDevice, L"wall2.jpg");
 	//level1.init_texture(g_pd3dDevice, L"floor.jpg");
@@ -901,17 +902,27 @@ void OnLBD(HWND hwnd, BOOL fDoubleClick, int x, int y, UINT keyFlags)
 	fwd.P1 = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z) + shootdirection;
 	COLL = level1.check_wall_vertex(fwd, SPHP);
 
-
+	bool flag = 0;
 	//TODO: FURTHEST FROM CAM BUT CLOSEST TO THE SPHERE FURTHEST FROM CAM
 	//		CHECK IN ONE DIRECTION (DOT PRODUCT BETWEEN CAM FWD AND SPHERE POS) *IDEA* (!)
 	if (COLL)
 	{
+
 		for (int i = 0; i < sphere_positions.size(); i++)
 		{
 			float leng = Vec3Length(*SPHP - sphere_positions[i]);
-			if (leng < 1.6f)
+			
+
+			float close = Vec3Dot(Vec3Normalize(ffwd),sphere_positions[i]);
+			
+			
+			
+			if (leng < 1.6f && close<0.5&& close>-0.5)
 			{
 				*SPHP = *SPHP + Vec3Normalize(ffwd);
+				
+				
+				
 			}
 		}
 		sphere_positions.push_back(*SPHP);

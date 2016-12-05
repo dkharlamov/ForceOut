@@ -487,13 +487,23 @@ class bitmap
 			check_save();
 			return TRUE;
 			}
-		BYTE get_pixel(int x, int y,int color_offset) //color_offset = 0,1 or 2 for red, green and blue
-			{
-			int array_position = x*3 + y* bmih.biWidth*3+ color_offset;
+		BYTE get_pixel(int x, int y, int color_offset) //color_offset = 0,1 or 2 for red, green and blue
+		{
+			int array_position = x * 3 + y* bmih.biWidth * 3 + color_offset;
 			if (array_position >= array_size) return 0;
 			if (array_position < 0) return 0;
 			return image[array_position];
-			}
+		}
+		BYTE set_pixel(int x, int y, int color_offset) //color_offset = 0,1 or 2 for red, green and blue
+		{
+			int array_position = x * 3 + y* bmih.biWidth * 3 + color_offset;
+			if (array_position >= array_size) return 0;
+			if (array_position < 0) return 0;
+			image[array_position] = 41;
+			return image[array_position];
+		}
+		    
+		
 		void check_save()
 			{
 			ofstream nbmpfile("newpic.bmp", ios::out | ios::binary);
@@ -523,11 +533,13 @@ class wall
 		XMFLOAT3 position;
 			int texture_no;
 			int rotation; //0,1,2,3,4,5 ... facing to z, x, -z, -x, y, -y
+			int collision;
 			wall()
 				{
 				texture_no = 0;
 				rotation = 0;
 				position = XMFLOAT3(0,0,0);
+				collision = 0;
 				}
 			XMMATRIX get_matrix()
 				{
@@ -713,7 +725,12 @@ public:
 			{
 				res = D3D_intersect_RayTriangle(B, a, b, c, solutions);
 				if (res == 1)
+				{
+					wall *w = walls.at(i / 12);
+					set_col(w->position);
+					w->collision++;
 					collisions.push_back(*solutions);
+				}
 			}
 
 			XMFLOAT3 a2 = pvertices[i + 3].Pos;
@@ -730,7 +747,13 @@ public:
 			{
 				res = D3D_intersect_RayTriangle(B, a2, b2, c2, solutions);
 				if (res == 1)
+				{
+					wall *w = walls.at(i /12);
+					w->collision++;
+					set_col(w->position);
+
 					collisions.push_back(*solutions);
+				}
 			}
 		}
 		if (collisions.size() > 0)
@@ -768,9 +791,22 @@ public:
 		}
 		return false;
 	}
+	void set_col(XMFLOAT3 pos)
+	{
+		pos.x = -pos.x;
+		int x_offset = 50;
+		float x, z;
+		pos.x /= 2;
+		pos.z /= 2;
+		x = (pos.x / FULLWALL) + x_offset + 0.5;
+		z = (pos.z / FULLWALL) + 0.5f;
+		leveldata.set_pixel(x, z, 2);
+
+	}
 
 	bool check_col(XMFLOAT3 pos)
 	{
+		
 		int x_offset = 50;
 		float x, z;
 		pos.x /= 2;
