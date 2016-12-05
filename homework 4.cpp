@@ -912,17 +912,10 @@ void OnLBD(HWND hwnd, BOOL fDoubleClick, int x, int y, UINT keyFlags)
 		{
 			float leng = Vec3Length(*SPHP - sphere_positions[i]);
 			
-
-			float close = Vec3Dot(Vec3Normalize(ffwd),sphere_positions[i]);
 			
-			
-			
-			if (leng < 1.6f && close<0.5&& close>-0.5)
+			if (leng < 1.6f)
 			{
 				*SPHP = *SPHP + Vec3Normalize(ffwd);
-				
-				
-				
 			}
 		}
 		sphere_positions.push_back(*SPHP);
@@ -1241,53 +1234,22 @@ class sprites
 sprites mario;
 
 
-void animateEnemies(TIME t)
+void sort_spheres()
 {
-	if (enemies[0].position.x < 0)
-		enemies[0].direction = true;
-	if(enemies[0].position.x > 10)
-		enemies[0].direction = false;
+	XMFLOAT3 cam_pos = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z);
+	for (int i = 0; i < sphere_positions.size(); i++)
+	{
+		for (int j = 0; j < sphere_positions.size(); j++)
+		{
+			float i_length = Vec3Length(cam_pos - sphere_positions[i]);
+			float j_length = Vec3Length(cam_pos - sphere_positions[j]);
 
-	if (!enemies[0].direction)
-		enemies[0].position.x -= t * 0.0000007f;
-	else
-		enemies[0].position.x += t * 0.0000007f;
-
-	if (enemies[1].position.x < -10)
-		enemies[1].direction = true;
-	if (enemies[1].position.x > 0)
-		enemies[1].direction = false;
-
-	if (!enemies[1].direction)
-		enemies[1].position.x -= t * 0.0000005f;
-	else
-		enemies[1].position.x += t * 0.0000005f;
-
-	if (enemies[2].position.x < -5)
-		enemies[2].direction = true;
-	if (enemies[2].position.x > 10)
-		enemies[2].direction = false;
-
-	if (!enemies[2].direction)
-		enemies[2].position.x -= t * 0.0000009f;
-	else
-		enemies[2].position.x += t * 0.0000009f;
-
-	if (enemies[3].position.z < 12)
-		enemies[3].direction = true;
-	if (enemies[3].position.z > 22)
-		enemies[3].direction = false;
-
-	if (!enemies[3].direction)
-		enemies[3].position.z -= t * 0.0000005f;
-	else
-		enemies[3].position.z += t * 0.0000005f;
-
-	static float tm = 0.0f;
-	tm += t / 6000000.0;
-	enemies[4].position.x = 7.0 + (3 * sin(tm));
-	enemies[4].position.z = 34.0 + (2 * cos(tm));
-
+			if (i_length < j_length)
+			{
+				swap(sphere_positions[i], sphere_positions[j]);
+			}
+		}
+	}
 }
 
 void Render_to_texture(TIME elapsed)
@@ -1578,6 +1540,8 @@ void Render_to_screen(long elapsed)
 		ST = XMMatrixTranslation(-99, -99, -99);
 		fll = 1;
 	}
+
+	sort_spheres();
 	for (int i = 0; i < sphere_positions.size(); i++) {
 
 
