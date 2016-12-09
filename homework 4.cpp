@@ -45,9 +45,12 @@ ID3D11Texture2D*                    g_pDepthStencil = NULL;
 ID3D11DepthStencilView*             g_pDepthStencilView = NULL;
 ID3D11VertexShader*                 g_pVertexShader = NULL;
 ID3D11VertexShader*                 g_pVertexShaderHUD = NULL;
+
 ID3D11PixelShader*                  g_pPixelShader = NULL;
 ID3D11PixelShader*                  g_pSphereShader = NULL;
 ID3D11PixelShader*                  g_pSphereShaderDepth = NULL;
+ID3D11PixelShader*					g_pMergeShader = NULL;
+
 ID3D11InputLayout*                  g_pVertexLayout = NULL;
 ID3D11Buffer*                       g_pVertexBuffer = NULL;
 ID3D11Buffer*                       g_pVertexBuffer_sky = NULL;
@@ -82,8 +85,15 @@ ID3D11ShaderResourceView*			g_pDestructTex = NULL;
 
 ID3D11RasterizerState				*rs_CW, *rs_CCW, *rs_NO, *rs_Wire;
 
-RenderTextureClass					RenderToTexture;
-RenderTextureClass					RenderToTextureDepth;
+RenderTextureClass					*RenderToTexture;
+RenderTextureClass					*RenderToTextureDepth;
+
+RenderTextureClass					*RenderToTextureSphere;
+RenderTextureClass					*RenderToTextureSphereDepth;
+
+RenderTextureClass					*RenderToTextureMerge;
+RenderTextureClass					*RenderToTextureMergeDepth;
+
 
 ID3D11VertexShader*                 g_pVertexShader_screen = NULL;
 ID3D11PixelShader*                  g_pPixelShader_screen = NULL;
@@ -223,6 +233,8 @@ HRESULT CompileShaderFromFile( WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR sz
 
 vector<billboard> enemies;
 vector<bullet> bullets;
+ConstantBuffer constantbuffer;
+
 //--------------------------------------------------------------------------------------
 // Create Direct3D device and swap chain
 //--------------------------------------------------------------------------------------
@@ -352,7 +364,6 @@ HRESULT InitDevice()
     if( FAILED( hr ) )
         return hr;
 
-	RenderToTextureDepth.Initialize_depth(g_pd3dDevice, g_hWnd, -1, -1); // , FALSE, DXGI_FORMAT_R8G8B8A8_UNORM, TRUE);
 	
 
 	D3D11_BLEND_DESC blendStateDesc;
@@ -501,6 +512,22 @@ HRESULT InitDevice()
 	pPSBlob->Release();
 	if (FAILED(hr))
 		return hr;
+
+
+	hr = CompileShaderFromFile(L"shader.fx", "PS_MERGE", "ps_4_0", &pPSBlob);
+	if (FAILED(hr))
+	{
+		MessageBox(NULL,
+			L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+		return hr;
+	}
+
+	// Create the pixel shader
+	hr = g_pd3dDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, &g_pMergeShader);
+	pPSBlob->Release();
+	if (FAILED(hr))
+		return hr;
+
 
 
 	pPSBlob = NULL;
@@ -748,7 +775,7 @@ HRESULT InitDevice()
     // Create the sample state
     D3D11_SAMPLER_DESC sampDesc;
     ZeroMemory( &sampDesc, sizeof(sampDesc) );
-    sampDesc.Filter = D3D11_FILTER_COMPARISON_ANISOTROPIC;
+    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
     sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
     sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
     sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -786,11 +813,12 @@ HRESULT InitDevice()
 	g_Projection = XMMatrixPerspectiveFovLH(XM_PIDIV4, width / (FLOAT)height, 0.01f, 1000.0f);
 	
 
-	ConstantBuffer constantbuffer;
 	constantbuffer.View = XMMatrixTranspose( g_View );
 	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
 	constantbuffer.World = XMMatrixTranspose(XMMatrixIdentity());
-    g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0 );
+	constantbuffer.data = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0 );
+	
 
 
 	//create the depth stencil states for turning the depth buffer on and of:
@@ -848,8 +876,27 @@ HRESULT InitDevice()
 
 
 
-	RenderToTexture.Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R8G8B8A8_UNORM, TRUE);
+	RenderToTexture = new RenderTextureClass;
+	RenderToTextureSphere = new RenderTextureClass;
+	RenderToTextureMerge = new RenderTextureClass;
+	RenderToTextureDepth = new RenderTextureClass;
+	RenderToTextureSphereDepth = new RenderTextureClass;
+	RenderToTextureMergeDepth = new RenderTextureClass;
+
+	RenderToTexture->Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R8G8B8A8_UNORM, TRUE);
 	
+	RenderToTextureSphere->Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R8G8B8A8_UNORM, TRUE);
+
+	RenderToTextureMerge->Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R8G8B8A8_UNORM, TRUE);
+
+	//----------------
+
+	RenderToTextureDepth->Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R32G32B32A32_FLOAT, TRUE);
+	
+	RenderToTextureSphereDepth->Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R32G32B32A32_FLOAT, TRUE);
+	
+	RenderToTextureMergeDepth->Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R32G32B32A32_FLOAT, TRUE);
+
     return S_OK;
 }
 
@@ -903,21 +950,24 @@ void OnLBD(HWND hwnd, BOOL fDoubleClick, int x, int y, UINT keyFlags)
 	COLL = level1.check_wall_vertex(fwd, SPHP);
 
 	bool flag = 0;
-	//TODO: FURTHEST FROM CAM BUT CLOSEST TO THE SPHERE FURTHEST FROM CAM
-	//		CHECK IN ONE DIRECTION (DOT PRODUCT BETWEEN CAM FWD AND SPHERE POS) *IDEA* (!)
+
+
+
+	for (int i = 0; i < sphere_positions.size(); i++)
+	{
+		float leng = Vec3Length(fwd.P0 - sphere_positions[i]);
+
+		if (abs(leng) < 1.4f)
+		{
+			*SPHP = sphere_positions[i] + Vec3Normalize(ffwd);
+			sphere_positions.push_back(*SPHP);
+			return;
+		}
+	}
+
+
 	if (COLL)
 	{
-
-		for (int i = 0; i < sphere_positions.size(); i++)
-		{
-			float leng = Vec3Length(*SPHP - sphere_positions[i]);
-			
-			
-			if (leng < 1.6f)
-			{
-				*SPHP = *SPHP + Vec3Normalize(ffwd);
-			}
-		}
 		sphere_positions.push_back(*SPHP);
 	}
 
@@ -1044,6 +1094,8 @@ void OnTimer(HWND hwnd, UINT id)
 	{
 
 	}
+bool pp = false;
+bool mm = false;
 bool shiftDown = false;
 //*************************************************************************
 void OnKeyUp(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
@@ -1058,12 +1110,17 @@ void OnKeyUp(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
 				break;
 			case 87: cam.w = 0; //w
 				break;
+			case 187: pp = false;
+				break;
+			case 189: mm = false;
+				break;
 			case 16: shiftDown = false;//escape
 				break;
 			case 76: 
 				sphere_out();
 				break;
 			case 83:cam.s = 0; //s
+
 			default:break;
 
 		}
@@ -1154,6 +1211,12 @@ void OnKeyDown(HWND hwnd, UINT vk, BOOL fDown, int cRepeat, UINT flags)
 
 			}
 			break;
+			case 187:
+				pp = true;
+			break;
+			case 189:
+				mm = true;
+			break;
 			case 27: PostQuitMessage(0);//escape
 				break;
 		}
@@ -1234,27 +1297,42 @@ class sprites
 sprites mario;
 
 
-void sort_spheres()
+int partition( int low, int high)
 {
 	XMFLOAT3 cam_pos = XMFLOAT3(-cam.position.x, -cam.position.y, -cam.position.z);
-	for (int i = 0; i < sphere_positions.size(); i++)
-	{
-		for (int j = 0; j < sphere_positions.size(); j++)
-		{
-			float i_length = Vec3Length(cam_pos - sphere_positions[i]);
-			float j_length = Vec3Length(cam_pos - sphere_positions[j]);
+	float pivot = Vec3Length(cam_pos - sphere_positions[high]);   // pivot
+	int i = (low - 1);  // Index of smaller element
 
-			if (i_length < j_length)
-			{
-				swap(sphere_positions[i], sphere_positions[j]);
-			}
+	for (int j = low; j <= high - 1; j++)
+	{
+	float j_length = Vec3Length(cam_pos - sphere_positions[j]);
+		if (j_length <= pivot)
+		{
+			i++;    
+			swap(sphere_positions[i], sphere_positions[j]);
 		}
+	}
+	swap(sphere_positions[i + 1], sphere_positions[high]);
+	return (i + 1);
+}
+
+void quickSort( int low, int high)
+{
+	if (low < high)
+	{
+		int pi = partition(low, high);
+
+		quickSort(low, pi - 1);
+		quickSort(pi + 1, high);
 	}
 }
 
+
+
+//RED
 void Render_to_texture(TIME elapsed)
 {
-	float ClearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f }; // red, green, blue, alpha
+	float ClearColor[4] = { 1.0f, 0.0f, 0.0f, 1.0f }; // red, green, blue, alpha
 
 
 
@@ -1322,16 +1400,19 @@ void Render_to_texture(TIME elapsed)
 
 	ID3D11RenderTargetView*			RenderTarget;
 
-	RenderTarget = RenderToTexture.GetRenderTarget();
+	RenderTarget = RenderToTexture->GetRenderTarget();
 
-	ID3D11DepthStencilView*			RenderDepthTarget;
+	ID3D11RenderTargetView*			RenderDepthTarget;
 
-	RenderDepthTarget = RenderToTextureDepth.GetDepthStencilView();
+	RenderDepthTarget = RenderToTextureDepth->GetRenderTarget();
 
 
 	g_pImmediateContext->ClearRenderTargetView(RenderTarget, ClearColor);
-	g_pImmediateContext->ClearDepthStencilView(RenderDepthTarget, D3D11_CLEAR_DEPTH, 1.0, 0);
-	g_pImmediateContext->OMSetRenderTargets(1, &RenderTarget, RenderDepthTarget);
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0, 0);
+
+	ID3D11RenderTargetView* Targets[2] = { RenderTarget,  RenderDepthTarget };
+
+	g_pImmediateContext->OMSetRenderTargets(2, Targets, g_pDepthStencilView);
 
 	XMMATRIX view = cam.get_matrix(&g_View);
 
@@ -1339,7 +1420,6 @@ void Render_to_texture(TIME elapsed)
 	UINT offset = 0;
 
 	// Update constant buffer
-	ConstantBuffer constantbuffer;
 	constantbuffer.View = XMMatrixTranspose(view);
 	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
 	constantbuffer.w_pos = XMFLOAT4(-cam.position.x, -cam.position.y, -cam.position.z, 1);
@@ -1373,12 +1453,16 @@ void Render_to_texture(TIME elapsed)
 	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pTextureRV);
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sky, &stride, &offset);
 	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
+
 
 	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
 	g_pImmediateContext->Draw(36, 0);
 
 	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
 
+	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
 
 	//render all the walls of the level
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
@@ -1419,6 +1503,8 @@ void Render_to_texture(TIME elapsed)
 
 
 
+	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
 
 	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
 	explosionhandler.render(&view, &g_Projection, elapsed);
@@ -1435,19 +1521,23 @@ void Render_to_texture(TIME elapsed)
 
 	g_pSwapChain->Present(0, 0);
 
+	ID3D11RenderTargetView* T2argets[2] = { NULL,  NULL };
+
+	g_pImmediateContext->OMSetRenderTargets(2, T2argets, g_pDepthStencilView);
+
 }
-//############################################################################################################
+
+//GREEN
 void Render_to_screen(long elapsed)
 {
 	//and now render it on the screen:
-	ConstantBuffer constantbuffer;
 	XMMATRIX view = cam.get_matrix(&g_View);
 	UINT stride = sizeof(SimpleVertex);
 	UINT offset = 0;
 
 	constantbuffer.View = XMMatrixTranspose(view);
 	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
-	constantbuffer.w_pos = XMFLOAT4(-cam.position.x, -cam.position.y, -cam.position.z,1);
+	constantbuffer.w_pos = XMFLOAT4(-cam.position.x, -cam.position.y, -cam.position.z, 1);
 
 	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
 	// Clear the back buffer
@@ -1463,27 +1553,34 @@ void Render_to_screen(long elapsed)
 	gameTime += elapsed;
 	float sway = 0.0f;
 
-	
-		if (shiftDown)
-		{
-			cam.animation(elapsed, 0.00002f, &level1);
-			if (cam.w || cam.s || cam.d || cam.a)
-				sway = sin(gameTime / 100000.0) * 0.01;
-			else
-				sway = sin(gameTime / 600000.0) * 0.005;
-		}
+
+	if (shiftDown)
+	{
+		cam.animation(elapsed, 0.00002f, &level1, &sphere_positions);
+		if (cam.w || cam.s || cam.d || cam.a)
+			sway = sin(gameTime / 100000.0) * 0.01;
 		else
-		{
-			cam.animation(elapsed, 0.000009f, &level1);
-			if (cam.w || cam.s || cam.d || cam.a)
-				sway = sin(gameTime / 300000.0) * 0.01;
-			else
-				sway = sin(gameTime / 600000.0) * 0.005;
-		}
-	
+			sway = sin(gameTime / 600000.0) * 0.005;
+	}
+	else
+	{
+		cam.animation(elapsed, 0.000009f, &level1, &sphere_positions);
+		if (cam.w || cam.s || cam.d || cam.a)
+			sway = sin(gameTime / 300000.0) * 0.01;
+		else
+			sway = sin(gameTime / 600000.0) * 0.005;
+	}
+
+
+	if (pp)
+		constantbuffer.data = XMFLOAT4(constantbuffer.data.x + 0.00001f, constantbuffer.data.y, constantbuffer.data.z, constantbuffer.data.w);
+	if (mm)
+		constantbuffer.data = XMFLOAT4(constantbuffer.data.x - 0.00001f, constantbuffer.data.y, constantbuffer.data.z, constantbuffer.data.w);
+
+
+
 
 	constantbuffer.w_pos = XMFLOAT4(-cam.position.x, -cam.position.y, -cam.position.z, 1);
-
 
 
 	constantbuffer.World = XMMatrixIdentity();
@@ -1495,19 +1592,21 @@ void Render_to_screen(long elapsed)
 
 	g_pImmediateContext->VSSetShader(g_pVertexShader_screen, NULL, 0);
 
-	if(!show_depth)
+	if (!show_depth)
 		g_pImmediateContext->PSSetShader(g_pPixelShader_screen, NULL, 0);
 	else
 		g_pImmediateContext->PSSetShader(g_pPixelShader_screen_depth, NULL, 0);
-	
-	if(show_AO)
+
+	if (show_AO)
 		g_pImmediateContext->PSSetShader(g_pPixelShader_screen_AO, NULL, 0);
-	
+
 	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
 	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
 
-	ID3D11ShaderResourceView*           texture		 = RenderToTexture.GetShaderResourceView();
-	ID3D11ShaderResourceView*           depthtexture = RenderToTextureDepth.GetShaderResourceView();
+
+
+	ID3D11ShaderResourceView*           texture		 = RenderToTextureMerge->GetShaderResourceView();
+	ID3D11ShaderResourceView*           depthtexture = RenderToTextureMergeDepth->GetShaderResourceView();
 	//g_pImmediateContext->GenerateMips(depthtexture);
 	//texture = g_pTextureRV;
 
@@ -1526,144 +1625,11 @@ void Render_to_screen(long elapsed)
 	
 	
 	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_screen, &stride, &offset);
-	g_pImmediateContext->PSSetSamplers(0, 1, &SamplerScreen);
-	g_pImmediateContext->VSSetSamplers(0, 1, &SamplerScreen);
 
 	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
 	g_pImmediateContext->Draw(6, 0);
 
 	XMMATRIX M = XMMatrixIdentity();
-	static XMMATRIX ST;
-	static int fll = 0;
-	if (fll == 0)
-	{
-		ST = XMMatrixTranslation(-99, -99, -99);
-		fll = 1;
-	}
-
-	sort_spheres();
-	for (int i = 0; i < sphere_positions.size(); i++) {
-
-
-		ST = XMMatrixTranslation(sphere_positions[i].x, sphere_positions[i].y, sphere_positions[i].z);
-		M = XMMatrixScaling(0.01f, 0.01f, 0.01f) * ST;
-		constantbuffer.World = XMMatrixTranspose(M);
-		constantbuffer.View = XMMatrixTranspose(view);
-		constantbuffer.Projection = XMMatrixTranspose(g_Projection);
-		g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
-		g_pImmediateContext->VSSetShader(g_pVertexShader, NULL, 0);
-		if(!show_depth)
-			g_pImmediateContext->PSSetShader(g_pSphereShader, NULL, 0);
-		else
-			g_pImmediateContext->PSSetShader(g_pSphereShaderDepth, NULL, 0);
-		g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
-		g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
-		g_pImmediateContext->PSSetShaderResources(0, 1, &g_pDestructTex);
-		g_pImmediateContext->PSSetShaderResources(1, 1, &depthtexture);
-		g_pImmediateContext->VSSetShaderResources(0, 1, &g_pTextureRV);
-		g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sphere, &stride, &offset);
-		g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
-		g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
-
-
-		//g_pImmediateContext->ClearDepthStencilView(RenderDepthTarget, D3D11_CLEAR_DEPTH, 1.0f, 0);
-		g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
-		g_pImmediateContext->Draw(model_vertex_anz, 0);
-		g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
-
-	}
-
-
-
-
-
-#pragma region Sphere_Test
-
-	ST = XMMatrixTranslation(6.125,0,10);
-	M = XMMatrixScaling(0.01f, 0.01f, 0.01f) * ST;
-	constantbuffer.World = XMMatrixTranspose(M);
-	constantbuffer.View = XMMatrixTranspose(view);
-	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
-	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
-	g_pImmediateContext->VSSetShader(g_pVertexShader, NULL, 0);
-	if (!show_depth)
-		g_pImmediateContext->PSSetShader(g_pSphereShader, NULL, 0);
-	else
-		g_pImmediateContext->PSSetShader(g_pSphereShaderDepth, NULL, 0);
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
-	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
-	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pDestructTex);
-	g_pImmediateContext->PSSetShaderResources(1, 1, &depthtexture);
-	g_pImmediateContext->VSSetShaderResources(0, 1, &g_pTextureRV);
-	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sphere, &stride, &offset);
-	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
-	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
-
-
-	//g_pImmediateContext->ClearDepthStencilView(RenderDepthTarget, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
-	g_pImmediateContext->Draw(model_vertex_anz, 0);
-	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
-
-
-	ST = XMMatrixTranslation(6.75, 0, 10);
-	M = XMMatrixScaling(0.01f, 0.01f, 0.01f) * ST;
-	constantbuffer.World = XMMatrixTranspose(M);
-	constantbuffer.View = XMMatrixTranspose(view);
-	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
-	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
-	g_pImmediateContext->VSSetShader(g_pVertexShader, NULL, 0);
-	if (!show_depth)
-		g_pImmediateContext->PSSetShader(g_pSphereShader, NULL, 0);
-	else
-		g_pImmediateContext->PSSetShader(g_pSphereShaderDepth, NULL, 0);
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
-	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
-	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pDestructTex);
-	g_pImmediateContext->PSSetShaderResources(1, 1, &depthtexture);
-	g_pImmediateContext->VSSetShaderResources(0, 1, &g_pTextureRV);
-	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sphere, &stride, &offset);
-	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
-	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
-
-
-	//g_pImmediateContext->ClearDepthStencilView(RenderDepthTarget, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
-	g_pImmediateContext->Draw(model_vertex_anz, 0);
-	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
-
-	ST = XMMatrixTranslation(8, 0, 10);
-	M = XMMatrixScaling(0.01f, 0.01f, 0.01f) * ST;
-	constantbuffer.World = XMMatrixTranspose(M);
-	constantbuffer.View = XMMatrixTranspose(view);
-	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
-	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
-	g_pImmediateContext->VSSetShader(g_pVertexShader, NULL, 0);
-	if (!show_depth)
-		g_pImmediateContext->PSSetShader(g_pSphereShader, NULL, 0);
-	else
-		g_pImmediateContext->PSSetShader(g_pSphereShaderDepth, NULL, 0);
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
-	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
-	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pDestructTex);
-	g_pImmediateContext->PSSetShaderResources(1, 1, &depthtexture);
-	g_pImmediateContext->VSSetShaderResources(0, 1, &g_pTextureRV);
-	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sphere, &stride, &offset);
-	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
-	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
-
-
-	//g_pImmediateContext->ClearDepthStencilView(RenderDepthTarget, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
-	g_pImmediateContext->Draw(model_vertex_anz, 0);
-	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
-
-
-
-#pragma endregion
-
-
-
 	M = XMMatrixIdentity();
 	XMMATRIX T = XMMatrixTranslation(-cam.position.x, -cam.position.y, -cam.position.z);
 	T = XMMatrixTranslation(0.1f + (sway * 0.5), -0.05f + sway, 0.2f);
@@ -1715,8 +1681,253 @@ void Render_to_screen(long elapsed)
 
 
 	g_pSwapChain->Present(0, 0);
+
 }
 
+//BLUE
+void Render_Spheres(int sphere_index)
+{
+	float ClearColor[4] = { 0.0f, 0.0, 1.0f, 1.0f }; // red, green, blue, alpha
+
+	
+	ID3D11RenderTargetView*			RenderTarget;
+
+	RenderTarget = RenderToTextureSphere->GetRenderTarget();
+
+	ID3D11RenderTargetView*			RenderDepthTarget;
+
+	RenderDepthTarget = RenderToTextureSphereDepth->GetRenderTarget();
+
+
+
+	//g_pImmediateContext->ClearRenderTargetView(RenderTarget, ClearColor);
+	//g_pImmediateContext->ClearRenderTargetView(RenderDepthTarget, ClearColor);
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0, 0);
+
+	ID3D11RenderTargetView* Targets[2] = { RenderTarget,  RenderDepthTarget };
+
+	g_pImmediateContext->OMSetRenderTargets(2, Targets, g_pDepthStencilView);
+
+
+	XMMATRIX view = cam.get_matrix(&g_View);
+
+	UINT stride = sizeof(SimpleVertex);
+	UINT offset = 0;
+
+	// Update constant buffer
+	constantbuffer.View = XMMatrixTranspose(view);
+	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+	constantbuffer.w_pos = XMFLOAT4(-cam.position.x, -cam.position.y, -cam.position.z, 1);
+
+	//XMMATRIX view = cam.get_matrix(&g_View);
+
+
+	XMMATRIX M = XMMatrixIdentity();
+	static XMMATRIX ST;
+	static int fll = 0;
+	if (fll == 0)
+	{
+		ST = XMMatrixTranslation(-99, -99, -99);
+		fll = 1;
+	}
+
+	ID3D11ShaderResourceView *sad_fuck = RenderToTexture->GetShaderResourceView();
+	ID3D11ShaderResourceView *sad = RenderToTextureDepth->GetShaderResourceView();
+	
+		ST = XMMatrixTranslation(sphere_positions[sphere_index].x, sphere_positions[sphere_index].y, sphere_positions[sphere_index].z);
+		M = XMMatrixScaling(0.01f, 0.01f, 0.01f) * ST;
+		constantbuffer.World = XMMatrixTranspose(M);
+		constantbuffer.View = XMMatrixTranspose(view);
+		constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+		g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+		g_pImmediateContext->VSSetShader(g_pVertexShader, NULL, 0);
+		g_pImmediateContext->PSSetShader(g_pSphereShader, NULL, 0);
+		g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
+		g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer); 
+		g_pImmediateContext->PSSetShaderResources(0, 1, &g_pDestructTex);
+		g_pImmediateContext->PSSetShaderResources(1, 1, &sad);
+		g_pImmediateContext->PSSetShaderResources(2, 1, &sad_fuck);
+		g_pImmediateContext->VSSetShaderResources(0, 1, &g_pTextureRV);
+		g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sphere, &stride, &offset);
+		g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+		g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
+
+
+		//g_pImmediateContext->ClearDepthStencilView(RenderDepthTarget, D3D11_CLEAR_DEPTH, 1.0f, 0);
+		//g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+		g_pImmediateContext->Draw(model_vertex_anz, 0);
+		//g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
+
+
+	g_pSwapChain->Present(0, 0);
+
+	ID3D11RenderTargetView* T2argets[2] = { NULL,  NULL };
+
+	g_pImmediateContext->OMSetRenderTargets(2, T2argets, g_pDepthStencilView);
+}
+
+
+//BLUE+GREEN
+void Render_Spheres()
+{
+	float ClearColor[4] = { 0.0f, 1.0, 1.0f, 1.0f }; // red, green, blue, alpha
+
+
+	ID3D11RenderTargetView*			RenderTarget;
+
+	RenderTarget = RenderToTextureSphere->GetRenderTarget();
+
+	ID3D11RenderTargetView*			RenderDepthTarget;
+
+	RenderDepthTarget = RenderToTextureSphereDepth->GetRenderTarget();
+
+
+
+	//g_pImmediateContext->ClearRenderTargetView(RenderTarget, ClearColor);
+	//g_pImmediateContext->ClearRenderTargetView(RenderDepthTarget, ClearColor);
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0, 0);
+
+	ID3D11RenderTargetView* Targets[2] = { RenderTarget,  RenderDepthTarget };
+
+	g_pImmediateContext->OMSetRenderTargets(2, Targets, g_pDepthStencilView);
+
+
+	XMMATRIX view = cam.get_matrix(&g_View);
+
+	UINT stride = sizeof(SimpleVertex);
+	UINT offset = 0;
+
+	// Update constant buffer
+	constantbuffer.View = XMMatrixTranspose(view);
+	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+	constantbuffer.w_pos = XMFLOAT4(-cam.position.x, -cam.position.y, -cam.position.z, 1);
+
+	//XMMATRIX view = cam.get_matrix(&g_View);
+
+
+	XMMATRIX M = XMMatrixIdentity();
+	static XMMATRIX ST;
+	static int fll = 0;
+	if (fll == 0)
+	{
+		ST = XMMatrixTranslation(-99, -99, -99);
+		fll = 1;
+	}
+
+	ID3D11ShaderResourceView *sad_fuck = RenderToTexture->GetShaderResourceView();
+	ID3D11ShaderResourceView *sad = RenderToTextureDepth->GetShaderResourceView();
+
+	ST = XMMatrixTranslation(-2,0,10);
+	M = XMMatrixScaling(0.01f, 0.01f, 0.01f) * ST;
+	constantbuffer.World = XMMatrixTranspose(M);
+	constantbuffer.View = XMMatrixTranspose(view);
+	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+	g_pImmediateContext->VSSetShader(g_pVertexShader, NULL, 0);
+	g_pImmediateContext->PSSetShader(g_pSphereShader, NULL, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pDestructTex);
+	g_pImmediateContext->PSSetShaderResources(1, 1, &sad); 
+	g_pImmediateContext->PSSetShaderResources(2, 1, &sad_fuck);
+	g_pImmediateContext->VSSetShaderResources(0, 1, &g_pTextureRV);
+	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_sphere, &stride, &offset);
+	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+	g_pImmediateContext->VSSetSamplers(0, 1, &g_pSamplerLinear);
+
+
+	//g_pImmediateContext->ClearDepthStencilView(RenderDepthTarget, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+	g_pImmediateContext->Draw(model_vertex_anz, 0);
+	g_pImmediateContext->OMSetDepthStencilState(ds_on, 1);
+
+
+	g_pSwapChain->Present(0, 0);
+
+}
+
+//RED+BLUE
+void Merge_Render(RenderTextureClass *RT, RenderTextureClass *DRT)
+{
+	//and now render it on the screen:
+	XMMATRIX view = cam.get_matrix(&g_View);
+	UINT stride = sizeof(SimpleVertex);
+	UINT offset = 0;
+
+	constantbuffer.View = XMMatrixTranspose(view);
+	constantbuffer.Projection = XMMatrixTranspose(g_Projection);
+	constantbuffer.w_pos = XMFLOAT4(-cam.position.x, -cam.position.y, -cam.position.z, 1);
+
+
+	ID3D11RenderTargetView*			RenderTarget;
+
+	RenderTarget = RenderToTextureMerge->GetRenderTarget();
+
+	ID3D11RenderTargetView*			RenderDepthTarget;
+
+	RenderDepthTarget = RenderToTextureMergeDepth->GetRenderTarget();
+
+	ID3D11RenderTargetView* Targets[2] = { RenderTarget , RenderDepthTarget };
+
+	g_pImmediateContext->OMSetRenderTargets(2, Targets, g_pDepthStencilView);
+
+
+	// Clear the back buffer
+	float ClearColor2[4] = { 1.0f, 0.0f, 1.0f, 1.0f }; // red, green, blue, alpha
+
+	//g_pImmediateContext->ClearRenderTargetView(RenderTarget, ClearColor2);
+	// Clear the depth buffer to 1.0 (max depth)
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+
+	constantbuffer.w_pos = XMFLOAT4(-cam.position.x, -cam.position.y, -cam.position.z, 1);
+
+
+
+	constantbuffer.World = XMMatrixIdentity();
+	g_pImmediateContext->UpdateSubresource(g_pCBuffer, 0, NULL, &constantbuffer, 0, 0);
+
+
+	// Render screen
+
+
+	g_pImmediateContext->VSSetShader(g_pVertexShader_screen, NULL, 0);
+	g_pImmediateContext->PSSetShader(g_pMergeShader, NULL, 0);
+
+
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBuffer);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBuffer);
+
+	ID3D11ShaderResourceView*           scene_texture			= RT->GetShaderResourceView();
+	ID3D11ShaderResourceView*           scene_depth_texture		= DRT->GetShaderResourceView();
+	ID3D11ShaderResourceView*           sphere_texture			= RenderToTextureSphere->GetShaderResourceView();
+	ID3D11ShaderResourceView*           sphere_depth_texture	= RenderToTextureSphereDepth->GetShaderResourceView();
+
+	g_pImmediateContext->VSSetShaderResources(0, 1, &scene_texture);
+
+	
+	g_pImmediateContext->PSSetShaderResources(0, 1, &sphere_texture);
+	g_pImmediateContext->PSSetShaderResources(1, 1, &sphere_depth_texture);
+	g_pImmediateContext->PSSetShaderResources(2, 1, &scene_texture);
+	g_pImmediateContext->PSSetShaderResources(3, 1, &scene_depth_texture);
+
+
+	g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer_screen, &stride, &offset);
+
+	g_pImmediateContext->OMSetDepthStencilState(ds_off, 1);
+	g_pImmediateContext->Draw(6, 0);
+
+
+
+	g_pSwapChain->Present(0, 0);
+
+
+	ID3D11RenderTargetView* T2argets[2] = { NULL,  NULL };
+
+	g_pImmediateContext->OMSetRenderTargets(2, T2argets, g_pDepthStencilView);
+
+
+}
 
 //--------------------------------------------------------------------------------------
 // Render a frame
@@ -1724,16 +1935,50 @@ void Render_to_screen(long elapsed)
 void Render()
 {
 
+	static StopWatchMicro_ fps_timer;
+	fps_timer.start();
+	TIME fps_pos;
+
 	static float t = 0.0f;
 	t += 0.001;
 	static StopWatchMicro_ timer;
 	TIME elapsed = timer.elapse_micro();
 	timer.start();
-
-
+	
+	float ClearColor[4] = { 0.9f, 0.2, 0.2f, 1.0f };
+	g_pImmediateContext->ClearRenderTargetView(RenderToTextureSphere->GetRenderTarget(), ClearColor);
+	g_pImmediateContext->ClearRenderTargetView(RenderToTextureSphereDepth->GetRenderTarget(), ClearColor);
+	
 
 	Render_to_texture(elapsed);
 
+	
+	
+	if(sphere_positions.size() > 0)
+		quickSort(0, sphere_positions.size() - 1);
+	for (int i = 0; i < sphere_positions.size(); i++)
+	{
+		Render_Spheres(i);
+		if (i == 0)
+			Merge_Render(RenderToTexture, RenderToTextureDepth);
+		else
+			Merge_Render(RenderToTextureMerge, RenderToTextureMergeDepth);
+	}
 
+
+	//Render_Spheres();
+	
+	Merge_Render(RenderToTexture, RenderToTextureDepth);
+
+
+	//RTM HAS DATA!!!!
 	Render_to_screen(elapsed);
+
+	fps_pos = fps_timer.elapse_micro();
+	font.setColor(XMFLOAT3(0, 1, 0));
+	font.setPosition(XMFLOAT3(-0.95, 0.95, 0));
+	font << "fps: " + to_string((int)(1 / (fps_pos * 0.000001f)));
+
+
+	g_pSwapChain->Present(0, 0);
 }

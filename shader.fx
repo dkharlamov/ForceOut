@@ -10,6 +10,7 @@
 Texture2D txDiffuse : register( t0 );
 Texture2D txDepth : register(t1);
 Texture2D tx : register(t2);
+Texture2D txR : register(t3);
 SamplerState samLinear : register( s0 );
 
 cbuffer ConstantBuffer : register( b0 )
@@ -18,6 +19,7 @@ matrix World;
 matrix View;
 matrix Projection;
 float4 w_pos;
+float4 data;
 };
 
 
@@ -52,6 +54,17 @@ struct PS_INPUT_L
 };
 
 
+struct PS_DDOutput
+{
+
+	float4 Col	: SV_Target0;
+	float4 Pos	: SV_Target1;
+
+};
+
+#define DEPTH 512
+
+//DEPTH
 
 //--------------------------------------------------------------------------------------
 // Vertex Shader
@@ -99,13 +112,17 @@ PS_INPUT VSHUD(VS_INPUT input)
 // Pixel Shader
 //--------------------------------------------------------------------------------------
 
-float4 PSlevel(PS_INPUT_L input) : SV_Target
+PS_DDOutput PSlevel(PS_INPUT_L input) : SV_Target
 {
 	float4 color = tx.Sample(samLinear, input.Tex.xy);
-	float depth = saturate(input.Pos.z / input.Pos.w);
+	float depth = input.Pos.z / input.Pos.w;
+
+
+	float fog_d = saturate(sqrt(depth));
+
 	float4 fogColor = float4(0.3, 0.01, 0.0, 1.0);
 
-	float fogFactor = depth * 3;
+	float fogFactor = fog_d;
 
 	float4 colorf = (pow(fogFactor, 1) * color + saturate(1.00 - fogFactor/6) * fogColor);
 
@@ -113,17 +130,26 @@ float4 PSlevel(PS_INPUT_L input) : SV_Target
 	//	colorf = color;
 
 	color.rgb = colorf.rgb;
-	return color; //float4(depth, depth, depth, 1);
+	PS_DDOutput outp;
+
+	outp.Col = color;
+	outp.Pos = depth;
+	outp.Pos.a = 1;
+	
+
+	return outp;
+	//return color; //float4(depth, depth, depth, 1);
 }
-float4 PS( PS_INPUT input) : SV_Target
+PS_DDOutput PS( PS_INPUT input) : SV_Target
 {
     float4 color = txDiffuse.Sample( samLinear, input.Tex );
-	float depth = saturate(sqrt(input.Pos.z / input.Pos.w));
+	float depth = input.Pos.z / input.Pos.w;
 
+	float fog_d = saturate(sqrt(depth));
 
 		float4 fogColor = float4(0.3, 0.01, 0.0, 1.0);
 
-		float fogFactor = depth;
+		float fogFactor = fog_d;
 
 		float4 colorf = (pow(fogFactor, 2.5) * color + (1.00 - fogFactor) * fogColor);
 
@@ -131,26 +157,43 @@ float4 PS( PS_INPUT input) : SV_Target
 		//	colorf = color;
 
 	color.rgb = colorf.rgb;
+	
+	PS_DDOutput outp;
+
+	outp.Col = color;
+	outp.Pos = depth;
+	outp.Pos.a = 1;
+
+	return outp;
 
 
-	return color; //float4(depth, depth, depth, 1);;
+
+	//return color; //float4(depth, depth, depth, 1);;
 }
 
-float4 PS_SPHERE(PS_INPUT input) : SV_Target
+PS_DDOutput PS_SPHERE(PS_INPUT input) : SV_Target
 {
 	float4 color = txDiffuse.Sample(samLinear, input.Tex);
-	float4 result = txDepth.Sample(samLinear, float2(input.Pos.x/1280, input.Pos.y/720));
+	float4 result = txDepth.Sample(samLinear, float2(input.Pos.x / 1280, input.Pos.y / 720));
+	float4 level = tx.Sample(samLinear, float2(input.Pos.x / 1280, input.Pos.y / 720));
+
+
+	float pix_depth = input.Pos.z / input.Pos.w;
+	//pix_depth = pow(pix_depth, DEPTH);
+	//pix_depth = 1 - pix_depth; //working!
+
+
+	PS_DDOutput outp;
+
+
 
 
 	result.a = 1;
 
 	float depth = result.r;
-	depth = pow(depth, 512);
-	depth = 1 - depth;
+	//depth = pow(depth, DEPTH);
+	//depth = 1 - depth;
 
-	float pix_depth = input.ScreenPos.z / input.ScreenPos.w;
-	pix_depth = pow(pix_depth, 512);
-	pix_depth = 1 - pix_depth; //working!
 
 
 
@@ -172,7 +215,9 @@ float4 PS_SPHERE(PS_INPUT input) : SV_Target
 	float visible = dot(p_cam_dir, normalize(-input.Norm));
 
 
-	float pseudo_diameter = saturate(sin(visible * 1.570796)) * 1.6; //!!!!! at the moment!
+
+
+	float pseudo_diameter = saturate(sin(visible * 1.570796)) * 1.612847442; //!!!!! at the moment!
 
 	//pseudo_diameter = 1;
 
@@ -180,37 +225,55 @@ float4 PS_SPHERE(PS_INPUT input) : SV_Target
 	opposide_pos = mul(opposide_pos, View);
 	opposide_pos = mul(opposide_pos, Projection);
 	float opposide_pix_depth = opposide_pos.z / opposide_pos.w;
-	opposide_pix_depth = pow(opposide_pix_depth, 512);
-	opposide_pix_depth = 1 - opposide_pix_depth; //working!
+	//opposide_pix_depth = pow(opposide_pix_depth, DEPTH);
+	//opposide_pix_depth = 1 - opposide_pix_depth; //working!
 
 	//closer -> 1
+	level.a = 1;
 
+
+	
 	if (pix_depth > depth)
-		color.a = 0;
+		color = level;
+	
+	
 
-	if((pix_depth + pseudo_diameter / 10.) < depth)
-		color.a = 0;
+	if ((pix_depth + pseudo_diameter * (pix_depth)) < depth)
+		color = level;
 
 	if(visible<=0)
-		color.a = 0;
+		color = level;
+	
+	
 
 
-	return color;
+
+	outp.Col = color;
+	outp.Pos = pix_depth;
+	outp.Pos.a = 1;
+	return outp;
+
+	//return color;
 }
 
 
-float4 PS_SPHERE_DEPTH(PS_INPUT input) : SV_Target
+PS_DDOutput PS_SPHERE_DEPTH(PS_INPUT input) : SV_Target
 {
-	float pix_depth = input.ScreenPos.z/ input.ScreenPos.w;
+	float pix_depth = input.Pos.z / input.Pos.w;
+	pix_depth = pow(pix_depth, DEPTH);
 
-pix_depth = pow(pix_depth, 512);
+	pix_depth = 1 - pix_depth; // Inversion to match pixel depth
 
-pix_depth = 1 - pix_depth; // Inversion to match pixel depth
+	PS_DDOutput outp;
+
+	outp.Col = float4(pix_depth, pix_depth, pix_depth, 1);
+	outp.Pos.rgb = pix_depth;
+	outp.Pos.a = 1;
+	return outp;
 
 
 
-
-	return float4(pix_depth, pix_depth, pix_depth, 1.);
+	//return float4(pix_depth, pix_depth, pix_depth, 1.);
 }
 
 
@@ -297,17 +360,43 @@ float4 PS_screen_depth(PS_INPUT input) : SV_Target
 
 
 	result.a = 1;
+	return result;
 
 	float depth = result.r;
 
 
-	depth = pow(depth, 512);
+	//depth = pow(depth, DEPTH);
 
-	depth = 1 - depth; // Inversion to match pixel depth
+	//depth = 1 - depth; // Inversion to match pixel depth
 
 	result.rgb = depth; 
 
 	return result;
 
 
+}
+
+
+PS_DDOutput PS_MERGE(PS_INPUT input) : SV_Target
+{
+	float4 sphere_color	 = txDiffuse.Sample(samLinear,	input.Tex);
+	float4 sphere_depth	 = txDepth.Sample(samLinear, input.Tex);
+	float4 scene_color	 = tx.Sample(samLinear, input.Tex);
+	float4 scene_depth	 = txR.Sample(samLinear, input.Tex);
+
+	PS_DDOutput outp;
+
+	float interp = sphere_color.a;
+	float interpDepth = sphere_depth.a;
+
+	outp.Col.rgb = (scene_color.rgb * interp) + (sphere_color.rgb * (1 - interp));
+	outp.Pos.rgb = (scene_depth.rgb * interpDepth) + (sphere_depth.rgb * (1 - interpDepth));
+
+	
+	outp.Col.a = 1;
+	
+    outp.Pos.a = 1;
+
+
+	return outp;
 }

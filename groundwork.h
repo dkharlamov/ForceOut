@@ -312,6 +312,7 @@ struct ConstantBuffer
 	XMMATRIX View;
 	XMMATRIX Projection;
 	XMFLOAT4 w_pos;
+	XMFLOAT4 data;
 	};
 //*****************************************
 
@@ -726,9 +727,9 @@ public:
 				res = D3D_intersect_RayTriangle(B, a, b, c, solutions);
 				if (res == 1)
 				{
-					wall *w = walls.at(i / 12);
-					set_col(w->position);
-					w->collision++;
+					//wall *w = walls.at(i / 12);
+					//set_col(w->position);
+					//w->collision++;
 					collisions.push_back(*solutions);
 				}
 			}
@@ -748,9 +749,9 @@ public:
 				res = D3D_intersect_RayTriangle(B, a2, b2, c2, solutions);
 				if (res == 1)
 				{
-					wall *w = walls.at(i /12);
-					w->collision++;
-					set_col(w->position);
+				//	wall *w = walls.at(i /12);
+				//	w->collision++;
+				//	set_col(w->position);
 
 					collisions.push_back(*solutions);
 				}
@@ -804,9 +805,16 @@ public:
 
 	}
 
-	bool check_col(XMFLOAT3 pos)
+	bool check_col(XMFLOAT3 pos, vector<XMFLOAT3> sphere_pos)
 	{
-		
+
+		for (int i = 0; i < sphere_pos.size(); i++)
+		{
+			float leng = Vec3Length(pos - sphere_pos[i]);
+			if (abs(leng) < 1.0f)
+				return false;
+		}
+
 		int x_offset = 50;
 		float x, z;
 		pos.x /= 2;
@@ -1083,7 +1091,7 @@ class level
 				w = s = a = d = 0;
 				position = rotation = fwd = XMFLOAT3(0, 0, 0);
 				}
-			void animation(TIME t, float factor, level *levl)
+			void animation(TIME t, float factor, level *levl, vector<XMFLOAT3> *sphere_positions)
 				{
 
 
@@ -1106,10 +1114,10 @@ class level
 					position.x -= (forward.x * t * factor);
 					position.y -= (forward.y * t * factor);
 					position.z -= (forward.z * t * factor);
-					bool topRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z - 0.25f));
-					bool topLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z - 0.25f));
-					bool bottomRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z + 0.25f));
-					bool bottomLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z + 0.25f));
+					bool topRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z - 0.25f), *sphere_positions);
+					bool topLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z - 0.25f), *sphere_positions);
+					bool bottomRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z + 0.25f), *sphere_positions);
+					bool bottomLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z + 0.25f), *sphere_positions);
 						if (topRight || topLeft || bottomLeft || bottomRight)
 						{	
 							position.x += (forward.x * t * factor);
@@ -1124,10 +1132,10 @@ class level
 					position.x += forward.x * t * factor;
 					position.y += forward.y * t * factor;
 					position.z += forward.z * t * factor;
-					bool topRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z - 0.25f));
-					bool topLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z - 0.25f));
-					bool bottomRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z + 0.25f));
-					bool bottomLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z + 0.25f));
+					bool topRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z - 0.25f), *sphere_positions);
+					bool topLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z - 0.25f), *sphere_positions);
+					bool bottomRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z + 0.25f), *sphere_positions);
+					bool bottomLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z + 0.25f), *sphere_positions);
 					if (topRight || topLeft || bottomLeft || bottomRight)
 					{
 						position.x -= forward.x * t * factor;
@@ -1140,10 +1148,10 @@ class level
 					position.x -= side.x * t * factor;
 					position.y -= side.y * t * factor;
 					position.z -= side.z * t * factor;
-					bool topRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z - 0.25f));
-					bool topLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z - 0.25f));
-					bool bottomRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z + 0.25f));
-					bool bottomLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z + 0.25f));
+					bool topRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z - 0.25f), *sphere_positions);
+					bool topLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z - 0.25f), *sphere_positions);
+					bool bottomRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z + 0.25f), *sphere_positions);
+					bool bottomLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z + 0.25f), *sphere_positions);
 					if (topRight || topLeft || bottomLeft || bottomRight)
 					{
 						position.x += side.x * t * factor;
@@ -1156,10 +1164,10 @@ class level
 					position.x += side.x * t * factor;
 					position.y += side.y * t * factor;
 					position.z += side.z * t * factor;
-					bool topRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z - 0.25f));
-					bool topLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z - 0.25f));
-					bool bottomRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z + 0.25f));
-					bool bottomLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z + 0.25f));
+					bool topRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z - 0.25f), *sphere_positions);
+					bool topLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z - 0.25f), *sphere_positions);
+					bool bottomRight = levl->check_col(XMFLOAT3(-position.x - 0.25f, -position.y, -position.z + 0.25f), *sphere_positions);
+					bool bottomLeft = levl->check_col(XMFLOAT3(-position.x + 0.25f, -position.y, -position.z + 0.25f), *sphere_positions);
 					if (topRight || topLeft || bottomLeft || bottomRight)
 					{
 						position.x -= side.x * t * factor;
