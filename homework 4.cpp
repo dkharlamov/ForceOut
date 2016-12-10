@@ -87,12 +87,15 @@ ID3D11RasterizerState				*rs_CW, *rs_CCW, *rs_NO, *rs_Wire;
 
 RenderTextureClass					*RenderToTexture;
 RenderTextureClass					*RenderToTextureDepth;
+RenderTextureClass					*RenderToTexturePosition;
 
 RenderTextureClass					*RenderToTextureSphere;
 RenderTextureClass					*RenderToTextureSphereDepth;
+RenderTextureClass					*RenderToTextureSpherePosition;
 
 RenderTextureClass					*RenderToTextureMerge;
 RenderTextureClass					*RenderToTextureMergeDepth;
+RenderTextureClass					*RenderToTextureMergePosition;
 
 
 ID3D11VertexShader*                 g_pVertexShader_screen = NULL;
@@ -882,6 +885,9 @@ HRESULT InitDevice()
 	RenderToTextureDepth = new RenderTextureClass;
 	RenderToTextureSphereDepth = new RenderTextureClass;
 	RenderToTextureMergeDepth = new RenderTextureClass;
+	RenderToTexturePosition = new RenderTextureClass;
+	RenderToTextureSpherePosition = new RenderTextureClass;
+	RenderToTextureMergePosition = new RenderTextureClass;
 
 	RenderToTexture->Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R8G8B8A8_UNORM, TRUE);
 	
@@ -896,6 +902,14 @@ HRESULT InitDevice()
 	RenderToTextureSphereDepth->Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R32G32B32A32_FLOAT, TRUE);
 	
 	RenderToTextureMergeDepth->Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R32G32B32A32_FLOAT, TRUE);
+
+	//----------------
+
+	RenderToTexturePosition->Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R32G32B32A32_FLOAT, TRUE);
+
+	RenderToTextureSpherePosition->Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R32G32B32A32_FLOAT, TRUE);
+
+	RenderToTextureMergePosition->Initialize(g_pd3dDevice, g_hWnd, -1, -1, FALSE, DXGI_FORMAT_R32G32B32A32_FLOAT, TRUE);
 
     return S_OK;
 }
@@ -1958,11 +1972,10 @@ void Render()
 		quickSort(0, sphere_positions.size() - 1);
 	for (int i = 0; i < sphere_positions.size(); i++)
 	{
-		Render_Spheres(i);
-		if (i == 0)
-			Merge_Render(RenderToTexture, RenderToTextureDepth);
-		else
-			Merge_Render(RenderToTextureMerge, RenderToTextureMergeDepth);
+		XMFLOAT3 to_vec = sphere_positions[i] - cam.position;
+		float adsf = Vec3Dot(to_vec, fwd.P1);
+		if(adsf > 0)
+			Render_Spheres(i);
 	}
 
 

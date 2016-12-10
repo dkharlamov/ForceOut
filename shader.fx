@@ -73,7 +73,7 @@ PS_INPUT VS( VS_INPUT input )
 {
     PS_INPUT output = (PS_INPUT)0;
 	float4 pos = input.Pos;
-	pos = mul(pos, World);
+	float4 worldpos = pos = mul(pos, World);
 	output.Pos = mul(pos, View);
 	output.Pos = mul(output.Pos, Projection);
 	output.Tex = input.Tex;
@@ -81,9 +81,23 @@ PS_INPUT VS( VS_INPUT input )
 	//also turn the light normals in case of a rotation:
 	output.Norm = normalize(mul(input.Norm, World));
 	output.WorldPos = pos;
-	output.ScreenPos = mul(pos, View);
-	output.ScreenPos = mul(output.ScreenPos, Projection);
-    
+
+
+
+	float3 sp = worldpos;
+	sp.y = 0;
+
+
+	float3 cam = w_pos;
+	cam.y = 0;
+	float3 p_cam_dir = normalize((sp - cam));
+	float visible = dot(p_cam_dir, normalize(-input.Norm));
+	float pseudo_diameter = saturate(sin(visible * 1.570796)) * 1.612847442; //!!!!! at the moment!
+	float4 opposide_pos = worldpos;// +float4(p_cam_dir.xyz*pseudo_diameter, 1);
+	opposide_pos = mul(opposide_pos, View);
+	opposide_pos = mul(opposide_pos, Projection);
+	output.ScreenPos = opposide_pos;
+
     return output;
 }
 PS_INPUT_L VSlevel(VS_INPUT_L input)
@@ -179,6 +193,7 @@ PS_DDOutput PS_SPHERE(PS_INPUT input) : SV_Target
 
 
 	float pix_depth = input.Pos.z / input.Pos.w;
+
 	//pix_depth = pow(pix_depth, DEPTH);
 	//pix_depth = 1 - pix_depth; //working!
 
@@ -224,32 +239,40 @@ PS_DDOutput PS_SPHERE(PS_INPUT input) : SV_Target
 	float4 opposide_pos = worldpos + float4(p_cam_dir.xyz*pseudo_diameter,1);
 	opposide_pos = mul(opposide_pos, View);
 	opposide_pos = mul(opposide_pos, Projection);
-	float opposide_pix_depth = opposide_pos.z / opposide_pos.w;
+
+
+
+	float opposide_pix_depth = input.ScreenPos.z *0.01;
 	//opposide_pix_depth = pow(opposide_pix_depth, DEPTH);
 	//opposide_pix_depth = 1 - opposide_pix_depth; //working!
 
 	//closer -> 1
 	level.a = 1;
 
-
+	float pix_depth_back = (input.Pos.z + pseudo_diameter*0.00001) / input.Pos.w;
 	
 	if (pix_depth > depth)
+	{
 		color = level;
-	
+		pix_depth = depth;
+	}
 	
 
-	if ((pix_depth + pseudo_diameter * (pix_depth)) < depth)
+	else if ((pix_depth + pix_depth_back) < depth)
+	{
 		color = level;
-
+		pix_depth = depth;
+	}
 	if(visible<=0)
+	{
 		color = level;
+		pix_depth = depth;
+	}
 	
 	
-
-
 
 	outp.Col = color;
-	outp.Pos = pix_depth;
+	outp.Pos.xyz = opposide_pix_depth;
 	outp.Pos.a = 1;
 	return outp;
 
