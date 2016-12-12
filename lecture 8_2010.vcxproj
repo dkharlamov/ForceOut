@@ -383,6 +383,7 @@
     <ClCompile Include="Font.cpp" />
     <ClCompile Include="homework 4.cpp" />
     <ClCompile Include="load3ds.cpp" />
+    <ClCompile Include="RenderTargetSwapChain.cpp" />
     <ClCompile Include="render_to_texture.cpp" />
     <ClCompile Include="XMF3.cpp" />
   </ItemGroup>

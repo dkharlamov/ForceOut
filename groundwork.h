@@ -1195,11 +1195,11 @@ class level
 			ID3D11Texture2D*			m_renderTargetTexture;
 			ID3D11Texture3D*			m_renderTargetTexture3D;
 			ID3D11RenderTargetView*		m_renderTargetView;
-			ID3D11ShaderResourceView*	m_shaderResourceView;
 			ID3D11DepthStencilView*		m_DepthStencilView;
 			ID3D11UnorderedAccessView*  m_pUAVs;
 			bool uav;
 		public:
+			ID3D11ShaderResourceView*	m_shaderResourceView;
 			RenderTextureClass()
 			{
 				uav = FALSE;
@@ -1221,4 +1221,27 @@ class level
 			ID3D11ShaderResourceView* GetShaderResourceView();
 			ID3D11UnorderedAccessView*  GetUAV() { return m_pUAVs; }
 
+		};
+
+		class RenderTargetSwapChain
+		{
+		private:
+			RenderTextureClass *RTD;
+			RenderTextureClass *RTP;
+			RenderTextureClass *RTN;
+			RenderTextureClass *sRTD;
+			RenderTextureClass *sRTP;
+			RenderTextureClass *sRTN;
+		public:
+			bool swapped;
+			RenderTextureClass *RTT;
+			RenderTextureClass *sRTT;
+			static const int TEXTURE = 0;
+			static const int DEPTH = 1;
+			static const int POSITION = 2;
+			static const int NORMAL = 3;
+			RenderTargetSwapChain(ID3D11Device* g_pd3dDevice, HWND g_hWnd);
+			void getCurrentTargets(RenderTextureClass **out);
+			void getCurrentSRVs(RenderTextureClass **out);
+			void Present();
 		};
