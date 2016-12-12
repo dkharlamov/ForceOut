@@ -1797,9 +1797,9 @@ void Merge_Render(int sphere_index)
 void Render()
 {
 
-	static StopWatchMicro_ fps_timer;
-	fps_timer.start();
-	TIME fps_pos;
+//	static StopWatchMicro_ fps_timer;
+//	fps_timer.start();
+//	TIME fps_pos;
 
 	static StopWatchMicro_ timer;
 	TIME elapsed = timer.elapse_micro();
@@ -1827,10 +1827,10 @@ void Render()
 	}
 	
 	Render_to_screen(elapsed);
-	fps_pos = fps_timer.elapse_micro();
-	font.setColor(XMFLOAT3(0, 1, 0));
-	font.setPosition(XMFLOAT3(-0.95, 0.95, 0));
-	font << "fps: " + to_string((int)(1 / (fps_pos * 0.000001f)));
+//	fps_pos = fps_timer.elapse_micro();
+//	font.setColor(XMFLOAT3(0, 1, 0));
+//	font.setPosition(XMFLOAT3(-0.95, 0.95, 0));
+//	font << "fps: " + to_string((int)(1 / (fps_pos * 0.000001f)));
 
 	g_pSwapChain->Present(0, 0);
 }

@@ -215,6 +215,7 @@ PS_DDOutput PS_SPHERE(PS_INPUT input) : SV_Target
 	float pix_depth = input.Pos.z / input.Pos.w;
 	color.a = 1;
 	outp.Col = color;
+	outp.Col.b = pow(outp.Col.b, 2);
 
 	matrix ViewRot = View;
 	ViewRot._41 = ViewRot._42 = ViewRot._43 = 0.0;
